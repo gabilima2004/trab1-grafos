@@ -10,13 +10,13 @@ from busca import BFS, componentes
 
 
 def main():
-    nome_arquivo = input("Digite o nome do arquivo do grafo: ")
+    #nome_arquivo = input("Digite o nome do arquivo do grafo: ")
+    nome_arquivo = "teste1.txt"
+    #print("\nEscolha a representação do grafo:")
+    #print("1 - Lista de adjacência")
+    #print("2 - Matriz de adjacência")
 
-    print("\nEscolha a representação do grafo:")
-    print("1 - Lista de adjacência")
-    print("2 - Matriz de adjacência")
-
-    opcao = int(input("Opção: "))
+    '''opcao = int(input("Opção: "))
 
     if opcao == 1:
         representacao = "lista"
@@ -24,9 +24,9 @@ def main():
         representacao = "matriz"
     else:
         print("Opção inválida.")
-        return
+        return'''
 
-    grafo = ler_grafo(nome_arquivo, representacao)
+    grafo = ler_grafo(nome_arquivo, "lista")
 
     print("\n--- Grafo ---")
     print("Número de vértices:", grafo.numero_vertices)
