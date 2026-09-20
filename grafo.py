@@ -12,7 +12,7 @@ class Grafo:
         ]
 
     def adicionar_aresta(self, u, v):
-        # Como o grafo é não-direcionado,
+        # Grafo não-direcionado:
         # a aresta aparece nos dois sentidos.
 
         self.lista_adjacencia[u].append(v)
