@@ -11,7 +11,7 @@ def BFS(grafo, v_inicial):
     while fila:
         v = fila.popleft()
 
-        for i in grafo.lista_adjacencia[v]:
+        for i in grafo.vizinhos(v):
             if i in descobertos:
                 continue
 

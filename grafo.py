@@ -3,30 +3,40 @@ class Grafo:
         self.numero_vertices = numero_vertices
         self.representacao = representacao
 
-        # Lista de adjacência
-        self.lista_adjacencia = [[] for _ in range(numero_vertices + 1)]
+        self.lista_adjacencia = None
+        self.matriz_adjacencia = None
 
-        # Matriz de adjacência
-        self.matriz_adjacencia = [
-            [0] * (numero_vertices + 1)
-            for _ in range(numero_vertices + 1)
-        ]
+        if representacao == "lista":
+            self.lista_adjacencia = [[] for _ in range(numero_vertices + 1)]
+        else:
+            self.matriz_adjacencia = [
+                bytearray(numero_vertices + 1)
+                for _ in range(numero_vertices + 1)
+            ]
+
+        self.graus = [0] * (numero_vertices + 1)
 
     def adicionar_aresta(self, u, v):
-        # Como o grafo é não-direcionado,
-        # a aresta aparece nos dois sentidos.
+        if self.representacao == "lista":
+            self.lista_adjacencia[u].append(v)
+            self.lista_adjacencia[v].append(u)
+        else:
+            self.matriz_adjacencia[u][v] = 1
+            self.matriz_adjacencia[v][u] = 1
 
-        self.lista_adjacencia[u].append(v)
-        self.lista_adjacencia[v].append(u)
-
-        self.matriz_adjacencia[u][v] = 1
-        self.matriz_adjacencia[v][u] = 1
+        self.graus[u] += 1
+        self.graus[v] += 1
 
     def vizinhos(self, u):
-        return self.lista_adjacencia[u]
+        if self.representacao == "lista":
+            return self.lista_adjacencia[u]
+
+        linha = self.matriz_adjacencia[u]
+
+        return [v for v in range(1, self.numero_vertices + 1) if linha[v]]
 
     def grau(self, u):
-        return len(self.lista_adjacencia[u])
+        return self.graus[u]
 
     def obter_representacao(self):
         if self.representacao == "lista":
