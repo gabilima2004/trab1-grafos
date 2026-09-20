@@ -1,6 +1,7 @@
 class Grafo:
-    def __init__(self, numero_vertices):
+    def __init__(self, numero_vertices, representacao="lista"):
         self.numero_vertices = numero_vertices
+        self.representacao = representacao
 
         # Lista de adjacência
         self.lista_adjacencia = [[] for _ in range(numero_vertices + 1)]
@@ -12,7 +13,7 @@ class Grafo:
         ]
 
     def adicionar_aresta(self, u, v):
-        # Grafo não-direcionado:
+        # Como o grafo é não-direcionado,
         # a aresta aparece nos dois sentidos.
 
         self.lista_adjacencia[u].append(v)
@@ -26,3 +27,9 @@ class Grafo:
 
     def grau(self, u):
         return len(self.lista_adjacencia[u])
+
+    def obter_representacao(self):
+        if self.representacao == "lista":
+            return self.lista_adjacencia
+
+        return self.matriz_adjacencia

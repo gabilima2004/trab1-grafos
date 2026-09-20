@@ -22,3 +22,34 @@ def BFS(grafo, v_inicial):
             fila.append(i)
 
     return pai, nivel
+
+def componentes(grafo):
+    
+    n_explorado = set(range(1, grafo.numero_vertices + 1))
+    
+    componentes = []
+
+    while n_explorado:
+        v = next(iter(n_explorado))
+
+        pai, _ = BFS(grafo, v)
+
+        c = [v]
+        n_explorado.remove(v)
+
+        for i in pai:
+            n_explorado.remove(i)
+            c.append(i)
+
+        componentes.append(c)
+
+    componentes.sort(key=len, reverse=True)
+
+    tamanhos = []
+
+    for c in componentes:
+        tamanhos.append(len(c))
+
+    num_componentes = len(componentes)
+
+    return num_componentes, tamanhos, componentes
