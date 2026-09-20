@@ -1,0 +1,15 @@
+# Bytecode do Python
+__pycache__/
+*.pyc
+
+# Árvores de busca geradas pelo main.py
+arvore_*.txt
+
+# Grafos dos estudos de caso: grandes demais para o repositório
+# (grafo_6.txt.gz tem 350 MB e o limite do GitHub é 100 MB).
+# Baixe-os no site da disciplina.
+grafo_2.txt.gz
+grafo_3.txt.gz
+grafo_4.txt.gz
+grafo_5.txt.gz
+grafo_6.txt.gz
