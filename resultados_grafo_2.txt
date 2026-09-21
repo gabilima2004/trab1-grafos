@@ -1,0 +1,42 @@
+===== Estudos de caso - grafo_2.txt.gz =====
+
+Número de vértices: 49948
+Número de arestas: 1299794
+(leitura do arquivo: 0.5 s, fora das medições)
+
+--- 1. Memória por representação ---
+lista  :   113.47 MB
+matriz :  2385.04 MB
+matriz / lista: 21.0x
+
+--- 2 e 3. Tempo médio de busca ---
+BFS - lista  : 0.096980 s por busca  (100 buscas)
+DFS - lista  : 0.177893 s por busca  (100 buscas)
+BFS - matriz : 11.263468 s por busca  (3 buscas)
+DFS - matriz : 12.123450 s por busca  (3 buscas)
+BFS: matriz é 116.1x o tempo da lista
+DFS: matriz é 68.2x o tempo da lista
+
+--- 4. Pai dos vértices 10, 20 e 30 nas árvores de busca ---
+(pai 0 = é a própria raiz; '-' = não alcançado a partir da raiz)
+BFS a partir de 1: pai(10) = -, pai(20) = -, pai(30) = -
+BFS a partir de 2: pai(10) = 31751 [nível 3], pai(20) = -, pai(30) = -
+BFS a partir de 3: pai(10) = -, pai(20) = 46738 [nível 3], pai(30) = 18855 [nível 3]
+DFS a partir de 1: pai(10) = -, pai(20) = -, pai(30) = -
+DFS a partir de 2: pai(10) = 18057 [nível 16225], pai(20) = -, pai(30) = -
+DFS a partir de 3: pai(10) = -, pai(20) = 887 [nível 8458], pai(30) = 32621 [nível 3484]
+
+--- 5. Distância entre pares de vértices ---
+distância(10, 20) = infinito (componentes diferentes)
+distância(10, 30) = infinito (componentes diferentes)
+distância(20, 30) = 3
+
+--- 6. Componentes conexas ---
+Número de componentes conexas: 10
+Maior componente: 25000 vértices
+Menor componente: 48 vértices
+(tempo: 0.3 s)
+
+--- 7. Diâmetro ---
+Diâmetro aproximado (varredura dupla): 20  [par 47761 - 38990]  em 0.545 s
+Diâmetro exato: pulado - levaria cerca de 81 min (49948 BFS de 0.097 s). Use --forcar-diametro-exato para rodar mesmo assim.

@@ -1,0 +1,42 @@
+===== Estudos de caso - grafo_1.txt.gz =====
+
+Número de vértices: 10000
+Número de arestas: 109977
+(leitura do arquivo: 0.0 s, fora das medições)
+
+--- 1. Memória por representação ---
+lista  :    10.95 MB
+matriz :    97.10 MB
+matriz / lista: 8.9x
+
+--- 2 e 3. Tempo médio de busca ---
+BFS - lista  : 0.008668 s por busca  (100 buscas)
+DFS - lista  : 0.019419 s por busca  (100 buscas)
+BFS - matriz : 1.230279 s por busca  (100 buscas)
+DFS - matriz : 1.287707 s por busca  (100 buscas)
+BFS: matriz é 141.9x o tempo da lista
+DFS: matriz é 66.3x o tempo da lista
+
+--- 4. Pai dos vértices 10, 20 e 30 nas árvores de busca ---
+(pai 0 = é a própria raiz; '-' = não alcançado a partir da raiz)
+BFS a partir de 1: pai(10) = 2042 [nível 3], pai(20) = 8382 [nível 3], pai(30) = 8979 [nível 4]
+BFS a partir de 2: pai(10) = 8935 [nível 2], pai(20) = 7541 [nível 4], pai(30) = 8660 [nível 4]
+BFS a partir de 3: pai(10) = 7685 [nível 3], pai(20) = 9429 [nível 4], pai(30) = 5783 [nível 3]
+DFS a partir de 1: pai(10) = 3075 [nível 9233], pai(20) = 3575 [nível 9234], pai(30) = 6071 [nível 4699]
+DFS a partir de 2: pai(10) = 6552 [nível 4533], pai(20) = 9429 [nível 6828], pai(30) = 6071 [nível 6860]
+DFS a partir de 3: pai(10) = 2344 [nível 8547], pai(20) = 8781 [nível 9264], pai(30) = 6071 [nível 8048]
+
+--- 5. Distância entre pares de vértices ---
+distância(10, 20) = 3
+distância(10, 30) = 3
+distância(20, 30) = 4
+
+--- 6. Componentes conexas ---
+Número de componentes conexas: 1
+Maior componente: 10000 vértices
+Menor componente: 10000 vértices
+(tempo: 0.0 s)
+
+--- 7. Diâmetro ---
+Diâmetro aproximado (varredura dupla): 4  [par 2922 - 8735]  em 0.017 s
+Diâmetro exato: 5  [par 4 - 3161]  em 55.198 s

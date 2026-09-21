@@ -1,0 +1,39 @@
+===== Estudos de caso - grafo_6.txt.gz =====
+
+Número de vértices: 4843750
+Número de arestas: 46469670
+(leitura do arquivo: 39.2 s, fora das medições)
+
+[aviso] Matriz de adjacência exigiria 21850.6 GB para n = 4843750. Os experimentos com matriz foram pulados.
+
+--- 1. Memória por representação ---
+lista  :  4354.55 MB
+matriz : não medida - precisaria de 21850.6 GB (n^2 bytes)
+
+--- 2 e 3. Tempo médio de busca ---
+BFS - lista  : 12.497479 s por busca  (100 buscas)
+DFS - lista  : 19.290787 s por busca  (100 buscas)
+
+--- 4. Pai dos vértices 10, 20 e 30 nas árvores de busca ---
+(pai 0 = é a própria raiz; '-' = não alcançado a partir da raiz)
+BFS a partir de 1: pai(10) = -, pai(20) = -, pai(30) = -
+BFS a partir de 2: pai(10) = 1677854 [nível 4], pai(20) = 4095628 [nível 5], pai(30) = 4231681 [nível 5]
+BFS a partir de 3: pai(10) = -, pai(20) = -, pai(30) = -
+DFS a partir de 1: pai(10) = -, pai(20) = -, pai(30) = -
+DFS a partir de 2: pai(10) = 4534830 [nível 515287], pai(20) = 623747 [nível 2138226], pai(30) = 2943822 [nível 1836075]
+DFS a partir de 3: pai(10) = -, pai(20) = -, pai(30) = -
+
+--- 5. Distância entre pares de vértices ---
+distância(10, 20) = 5
+distância(10, 30) = 5
+distância(20, 30) = 5
+
+--- 6. Componentes conexas ---
+Número de componentes conexas: 5
+Maior componente: 2500000 vértices
+Menor componente: 156250 vértices
+(tempo: 43.7 s)
+
+--- 7. Diâmetro ---
+Diâmetro aproximado (varredura dupla): 19  [par 885722 - 922754]  em 69.493 s
+Diâmetro exato: pulado - levaria cerca de 1008911 min (4843750 BFS de 12.497 s). Use --forcar-diametro-exato para rodar mesmo assim.
