@@ -121,8 +121,6 @@ def main():
 
     grafo = ler_grafo(nome_arquivo, representacao)
 
-    mostrar_estatisticas(grafo)
-
     while True:
         print("\n--- Menu ---")
         print("1 - BFS (árvore com pai e nível)")
