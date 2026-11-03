@@ -4,6 +4,8 @@ __pycache__/
 
 # Árvores de busca geradas pelo main.py
 arvore_*.txt
+caminhos_heap_*.txt
+caminhos_vetor_*.txt
 
 # Grafos dos estudos de caso: grandes demais para o repositório
 # (grafo_6.txt.gz tem 350 MB e o limite do GitHub é 100 MB).

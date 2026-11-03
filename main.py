@@ -10,6 +10,7 @@ from busca import BFS, componentes
 from dfs import DFS
 from distancias import distancia, diametro, diametro_aproximado, INFINITO
 from saida import salvar_arvore
+from caminhos_minimos import dijkstra, reconstruir_caminho, salvar_caminhos
 
 
 def escolher_representacao():
@@ -67,6 +68,13 @@ def mostrar_distancia(grafo):
     u = int(input("\nVértice de origem: "))
     v = int(input("Vértice de destino: "))
 
+    grafo.validar_vertice(u)
+    grafo.validar_vertice(v)
+    if grafo.ponderado:
+        distancias, pais = dijkstra(grafo, u)
+        print(f"Distância entre {u} e {v}: {distancias[v]}")
+        print("Caminho:", reconstruir_caminho(pais, u, v))
+        return
     d = distancia(grafo, u, v)
 
     if d == INFINITO:
@@ -77,6 +85,9 @@ def mostrar_distancia(grafo):
 
 
 def mostrar_diametro(grafo):
+    if grafo.ponderado:
+        print("O diâmetro da parte 1 usa número de arestas e se aplica a grafos sem pesos.")
+        return
     print("\n1 - Diâmetro exato (uma BFS por vértice, lento em grafos grandes)")
     print("2 - Diâmetro aproximado (varredura dupla)")
 
@@ -114,6 +125,24 @@ def mostrar_componentes(grafo):
         )
 
 
+def executar_dijkstra(grafo):
+    origem = int(input("Vértice de origem: "))
+    opcao = input("Implementação (1 - vetor, 2 - heap): ").strip()
+    if opcao not in ("1", "2"):
+        raise ValueError("Escolha 1 ou 2.")
+    metodo = "vetor" if opcao == "1" else "heap"
+    distancias, pais = dijkstra(grafo, origem, metodo)
+    nome = f"caminhos_{metodo}_{origem}.txt"
+    salvar_caminhos(nome, origem, distancias, pais)
+    print(f"Distâncias e árvore de caminhos mínimos salvas em {nome}")
+    texto = input("Destino para consultar o caminho (Enter para voltar): ").strip()
+    if texto:
+        destino = int(texto)
+        grafo.validar_vertice(destino)
+        print("Distância:", distancias[destino])
+        print("Caminho:", reconstruir_caminho(pais, origem, destino))
+
+
 def main():
     nome_arquivo = input("Digite o nome do arquivo do grafo: ").strip()
 
@@ -129,26 +158,32 @@ def main():
         print("4 - Diâmetro")
         print("5 - Componentes conexas")
         print("6 - Estatísticas do grafo")
+        print("7 - Dijkstra (distâncias e árvore de caminhos mínimos)")
         print("0 - Sair")
 
         opcao = input("Opção: ").strip()
 
-        if opcao == "1":
-            executar_busca(grafo, "BFS")
-        elif opcao == "2":
-            executar_busca(grafo, "DFS")
-        elif opcao == "3":
-            mostrar_distancia(grafo)
-        elif opcao == "4":
-            mostrar_diametro(grafo)
-        elif opcao == "5":
-            mostrar_componentes(grafo)
-        elif opcao == "6":
-            mostrar_estatisticas(grafo)
-        elif opcao == "0":
-            break
-        else:
-            print("Opção inválida.")
+        try:
+            if opcao == "1":
+                executar_busca(grafo, "BFS")
+            elif opcao == "2":
+                executar_busca(grafo, "DFS")
+            elif opcao == "3":
+                mostrar_distancia(grafo)
+            elif opcao == "4":
+                mostrar_diametro(grafo)
+            elif opcao == "5":
+                mostrar_componentes(grafo)
+            elif opcao == "6":
+                mostrar_estatisticas(grafo)
+            elif opcao == "7":
+                executar_dijkstra(grafo)
+            elif opcao == "0":
+                break
+            else:
+                print("Opção inválida.")
+        except ValueError as erro:
+            print(f"Erro: {erro}")
 
 
 if __name__ == "__main__":

@@ -1,7 +1,12 @@
-# Trabalho de Grafos - Parte 1 (COS 242)
+# Trabalho de Grafos - Partes 1 e 2 (COS 242)
 
 Biblioteca para manipulação de grafos não-direcionados e os programas
 usados nos estudos de caso.
+
+A parte 2 acrescenta grafos ponderados, Dijkstra com vetor e heap indexado,
+e programas para os estudos de caso. Veja [a explicação da implementação e o
+guia de execução](PARTE2.md). As instruções abaixo documentam a parte 1;
+as funções de distância e diâmetro de `distancias.py` contam arestas.
 
 ## Módulos
 
