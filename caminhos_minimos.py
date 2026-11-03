@@ -3,24 +3,31 @@
 from math import inf
 from prioridades import FilaVetor, HeapIndexado
 
+MENSAGEM_PESO_NEGATIVO = "A biblioteca ainda não implementa caminhos mínimos com pesos negativos."
+FILAS = {"vetor": FilaVetor, "heap": HeapIndexado}
+
 
 def dijkstra(grafo, origem, implementacao="heap"):
     """Retorna (distancias, pais), vetores indexados pelos vértices 1..n.
 
     Inalcançáveis têm distância inf e pai None. A raiz tem pai None.
     Pesos zero são aceitos; qualquer peso negativo impede a execução.
+    implementacao é "vetor", "heap" ou uma fábrica de fila: chamada com o
+    vetor de distâncias, devolve um objeto com atualizar(v) e extrair_minimo().
     """
     grafo.validar_vertice(origem)
     if grafo.tem_peso_negativo:
-        raise ValueError("A biblioteca ainda não implementa caminhos mínimos com pesos negativos.")
-    filas = {"vetor": FilaVetor, "heap": HeapIndexado}
-    if implementacao not in filas:
-        raise ValueError("Implementação deve ser 'vetor' ou 'heap'.")
+        raise ValueError(MENSAGEM_PESO_NEGATIVO)
+    criar_fila = implementacao
+    if isinstance(implementacao, str):
+        if implementacao not in FILAS:
+            raise ValueError("Implementação deve ser 'vetor' ou 'heap'.")
+        criar_fila = FILAS[implementacao]
     distancias = [inf] * (grafo.numero_vertices + 1)
     pais = [None] * (grafo.numero_vertices + 1)
     finalizado = bytearray(grafo.numero_vertices + 1)
     distancias[origem] = 0.0
-    fila = filas[implementacao](distancias)
+    fila = criar_fila(distancias)
     fila.atualizar(origem)
     while True:
         u = fila.extrair_minimo()
@@ -37,13 +44,16 @@ def dijkstra(grafo, origem, implementacao="heap"):
 
 
 def reconstruir_caminho(pais, origem, destino):
-    """Retorna os vértices da rota ou [] quando não há caminho."""
+    """Retorna os vértices da rota ou [] quando não há caminho.
+
+    Aceita pais com None (motor Python) ou 0 (motor C) para "sem pai".
+    """
     if not 1 <= origem < len(pais) or not 1 <= destino < len(pais):
         raise ValueError("Origem ou destino inválido.")
     caminho = []
     atual = destino
-    while atual is not None:
-        caminho.append(atual)
+    while atual:  # None e 0 marcam ausência de pai
+        caminho.append(int(atual))
         if atual == origem:
             return caminho[::-1]
         if len(caminho) >= len(pais):

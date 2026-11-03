@@ -1,4 +1,6 @@
-from entrada_saida import ler_grafo
+from time import perf_counter
+
+from entrada_saida import ler_cabecalho, ler_grafo
 from estatisticas import (
     num_arestas,
     grau_min,
@@ -12,11 +14,16 @@ from distancias import distancia, diametro, diametro_aproximado, INFINITO
 from saida import salvar_arvore
 from caminhos_minimos import dijkstra, reconstruir_caminho, salvar_caminhos
 
+# Mesmo limite da parte 1 (experimentos.LIMITE_MATRIZ = 50000 vértices):
+# cerca de 2,5 GB. A matriz ponderada usa 8 bytes por posição.
+LIMITE_MATRIZ_BYTES = 50_001 ** 2
+
 
 def escolher_representacao():
     print("\nEscolha a representação do grafo:")
     print("1 - Lista de adjacência")
     print("2 - Matriz de adjacência")
+    print("3 - CSR compacta (grafos ponderados grandes; requer numpy)")
 
     opcao = input("Opção: ").strip()
 
@@ -26,9 +33,25 @@ def escolher_representacao():
     if opcao == "2":
         return "matriz"
 
+    if opcao == "3":
+        return "csr"
+
     print("Opção inválida, usando lista de adjacência.")
 
     return "lista"
+
+
+def representacao_viavel(nome_arquivo, representacao):
+    """Troca a matriz por outra representação quando ela não cabe na memória."""
+    if representacao != "matriz":
+        return representacao
+    numero_vertices, ponderado = ler_cabecalho(nome_arquivo)
+    tamanho = (numero_vertices + 1) ** 2 * (8 if ponderado else 1)
+    if tamanho <= LIMITE_MATRIZ_BYTES:
+        return representacao
+    alternativa = "csr" if ponderado else "lista"
+    print(f"A matriz exigiria {tamanho / 1024 ** 3:.1f} GB; usando {alternativa}.")
+    return alternativa
 
 
 def mostrar_estatisticas(grafo):
@@ -125,14 +148,33 @@ def mostrar_componentes(grafo):
         )
 
 
+def escolher_motor(grafo):
+    """O motor C (make) roda sobre a representação CSR."""
+    if grafo.representacao != "csr":
+        return "python"
+    from motor_c import disponivel
+    if not disponivel():
+        print("Motor C não compilado (rode make); usando Python.")
+        return "python"
+    opcao = input("Motor (1 - Python, 2 - C): ").strip()
+    return "c" if opcao == "2" else "python"
+
+
 def executar_dijkstra(grafo):
     origem = int(input("Vértice de origem: "))
     opcao = input("Implementação (1 - vetor, 2 - heap): ").strip()
     if opcao not in ("1", "2"):
         raise ValueError("Escolha 1 ou 2.")
     metodo = "vetor" if opcao == "1" else "heap"
-    distancias, pais = dijkstra(grafo, origem, metodo)
-    nome = f"caminhos_{metodo}_{origem}.txt"
+    motor = escolher_motor(grafo)
+    inicio = perf_counter()
+    if motor == "c":
+        from motor_c import dijkstra_c
+        distancias, pais = dijkstra_c(grafo, origem, metodo)
+    else:
+        distancias, pais = dijkstra(grafo, origem, metodo)
+    print(f"Dijkstra ({motor}, {metodo}) em {perf_counter() - inicio:.4f} s")
+    nome = f"caminhos_{metodo}_{origem}.txt" if motor == "python" else f"caminhos_c_{metodo}_{origem}.txt"
     salvar_caminhos(nome, origem, distancias, pais)
     print(f"Distâncias e árvore de caminhos mínimos salvas em {nome}")
     texto = input("Destino para consultar o caminho (Enter para voltar): ").strip()
@@ -146,7 +188,7 @@ def executar_dijkstra(grafo):
 def main():
     nome_arquivo = input("Digite o nome do arquivo do grafo: ").strip()
 
-    representacao = escolher_representacao()
+    representacao = representacao_viavel(nome_arquivo, escolher_representacao())
 
     grafo = ler_grafo(nome_arquivo, representacao)
 
