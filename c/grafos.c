@@ -291,6 +291,9 @@ struct Fila {
     /* execução parcial */
     int32_t (*extrair_sem_prazo)(Fila *fila);
     double prazo;
+    /* contagem de atualizações */
+    void (*atualizar_sem_contagem)(Fila *fila, int32_t v);
+    int64_t atualizacoes;
 };
 
 /* Vetor: atualizar custa O(1); extrair percorre os n vértices, O(n). */
@@ -400,6 +403,13 @@ static int32_t extrair_com_prazo(Fila *fila)
     return fila->extrair_sem_prazo(fila);
 }
 
+/* Usada só quando a contagem é pedida, como extrair_com_prazo. */
+static void atualizar_contando(Fila *fila, int32_t v)
+{
+    fila->atualizacoes++;
+    fila->atualizar_sem_contagem(fila, v);
+}
+
 static void liberar_fila(Fila *fila)
 {
     free(fila->chave);
@@ -448,7 +458,7 @@ static double agora(void)
 int gr_dijkstra(int32_t n, const int64_t *inicio, const int32_t *adjacentes,
                 const double *pesos, int32_t origem, int tipo_fila,
                 double *dist, int32_t *pai, double limite_segundos,
-                int64_t *extracoes, double *segundos)
+                int64_t *extracoes, int64_t *atualizacoes, double *segundos)
 {
     double comeco = agora();
     if (origem < 1 || origem > n)
@@ -474,6 +484,10 @@ int gr_dijkstra(int32_t n, const int64_t *inicio, const int32_t *adjacentes,
         fila.extrair_minimo = extrair_com_prazo;
         fila.prazo = comeco + limite_segundos;
     }
+    if (atualizacoes != NULL) {
+        fila.atualizar_sem_contagem = fila.atualizar;
+        fila.atualizar = atualizar_contando;
+    }
 
     dist[origem] = 0.0;
     fila.atualizar(&fila, origem);
@@ -498,6 +512,8 @@ int gr_dijkstra(int32_t n, const int64_t *inicio, const int32_t *adjacentes,
     free(finalizado);
     if (extracoes != NULL)
         *extracoes = extraidos;
+    if (atualizacoes != NULL)
+        *atualizacoes = fila.atualizacoes;
     if (segundos != NULL)
         *segundos = agora() - comeco;
     return GR_OK;

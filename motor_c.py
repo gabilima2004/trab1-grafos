@@ -18,13 +18,16 @@ import numpy as np
 from caminhos_minimos import MENSAGEM_PESO_NEGATIVO
 from grafo_csr import GrafoCSR
 
-CAMINHO_BIBLIOTECA = Path(__file__).resolve().parent / "c" / "libgrafos.so"
+# GRAFOS_BIBLIOTECA permite usar outra compilação sem sobrescrever a oficial.
+CAMINHO_BIBLIOTECA = Path(os.environ.get("GRAFOS_BIBLIOTECA")
+                          or Path(__file__).resolve().parent / "c" / "libgrafos.so")
 FILAS = {"vetor": 0, "heap": 1}
 _ERRO_ARQUIVO, _ERRO_MEMORIA = 1, 3
 _biblioteca = None
 
-# segundos: tempo medido dentro do C; extracoes: vértices extraídos da fila.
-ExecucaoC = namedtuple("ExecucaoC", "distancias pais segundos extracoes")
+# segundos: tempo medido dentro do C; extracoes: vértices extraídos da fila;
+# atualizacoes: chamadas a atualizar (None quando a contagem não foi pedida).
+ExecucaoC = namedtuple("ExecucaoC", "distancias pais segundos extracoes atualizacoes")
 
 
 def disponivel():
@@ -57,7 +60,7 @@ def _carregar():
     biblioteca.gr_dijkstra.argtypes = [ctypes.c_int32, vetor(np.int64), vetor(np.int32),
                                        vetor(np.float64), ctypes.c_int32, ctypes.c_int,
                                        vetor(np.float64), vetor(np.int32), ctypes.c_double,
-                                       ctypes.POINTER(ctypes.c_int64),
+                                       ctypes.POINTER(ctypes.c_int64), ctypes.POINTER(ctypes.c_int64),
                                        ctypes.POINTER(ctypes.c_double)]
     biblioteca.gr_dijkstra.restype = ctypes.c_int
     biblioteca.gr_compilacao.argtypes = []
@@ -99,13 +102,15 @@ def ler_csr(nome_arquivo):
     return GrafoCSR(n, inicio, adjacentes, pesos)
 
 
-def executar_c(grafo, origem, implementacao="heap", limite_segundos=0.0):
+def executar_c(grafo, origem, implementacao="heap", limite_segundos=0.0, contar=False):
     """Dijkstra no motor C, com as mesmas validações de caminhos_minimos.dijkstra.
 
-    Devolve ExecucaoC(distancias, pais, segundos, extracoes): vetores numpy
-    com n + 1 posições, em que pais usa 0, e não None, para a origem e para
-    os inalcançáveis. limite_segundos > 0 interrompe a execução no prazo
+    Devolve ExecucaoC(distancias, pais, segundos, extracoes, atualizacoes):
+    vetores numpy com n + 1 posições, em que pais usa 0, e não None, para a
+    origem e para os inalcançáveis. limite_segundos > 0 interrompe a execução no prazo
     (execução parcial, para estimar o tempo de execuções longas demais).
+    contar=True também conta as chamadas a atualizar da fila; a contagem fica
+    fora do laço principal e só existe quando pedida.
     """
     if not isinstance(grafo, GrafoCSR):
         raise TypeError("O motor C requer um GrafoCSR: use ler_grafo(arquivo, 'csr').")
@@ -119,15 +124,19 @@ def executar_c(grafo, origem, implementacao="heap", limite_segundos=0.0):
     distancias = np.empty(n + 1, np.float64)
     pais = np.empty(n + 1, np.int32)
     extracoes = ctypes.c_int64()
+    atualizacoes = ctypes.c_int64()
     segundos = ctypes.c_double()
     codigo = biblioteca.gr_dijkstra(n, grafo.inicio, grafo.adjacentes, grafo.pesos, int(origem),
                                     FILAS[implementacao], distancias, pais, float(limite_segundos),
-                                    ctypes.byref(extracoes), ctypes.byref(segundos))
+                                    ctypes.byref(extracoes),
+                                    ctypes.byref(atualizacoes) if contar else None,
+                                    ctypes.byref(segundos))
     if codigo == _ERRO_MEMORIA:
         raise MemoryError("Memória insuficiente para o Dijkstra em C.")
     if codigo != 0:
         raise RuntimeError(f"gr_dijkstra devolveu o código {codigo}.")
-    return ExecucaoC(distancias, pais, segundos.value, extracoes.value)
+    return ExecucaoC(distancias, pais, segundos.value, extracoes.value,
+                     atualizacoes.value if contar else None)
 
 
 def dijkstra_c(grafo, origem, implementacao="heap"):

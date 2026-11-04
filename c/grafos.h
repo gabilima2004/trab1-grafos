@@ -47,11 +47,13 @@ void gr_liberar_leitura(GrLeitura *leitura);
  * limite_segundos > 0 interrompe a execução nesse prazo (execução parcial,
  * usada para estimar o tempo de execuções longas demais); 0 executa até o fim.
  * extracoes e segundos, se não forem NULL, recebem o número de vértices
- * extraídos da fila e o tempo medido dentro do C. */
+ * extraídos da fila e o tempo medido dentro do C. atualizacoes, se não for
+ * NULL, recebe o número de chamadas a atualizar (inserções e reduções de
+ * chave, incluindo a origem); a contagem só é feita quando pedida. */
 int gr_dijkstra(int32_t n, const int64_t *inicio, const int32_t *adjacentes,
                 const double *pesos, int32_t origem, int fila,
                 double *dist, int32_t *pai, double limite_segundos,
-                int64_t *extracoes, double *segundos);
+                int64_t *extracoes, int64_t *atualizacoes, double *segundos);
 
 /* Compilador e opções usadas no build (registrados com os resultados). */
 const char *gr_compilacao(void);

@@ -14,7 +14,7 @@ from pathlib import Path
 import numpy as np
 
 import motor_c
-from caminhos_minimos import dijkstra, reconstruir_caminho, salvar_caminhos
+from caminhos_minimos import FILAS, dijkstra, reconstruir_caminho, salvar_caminhos
 from entrada_saida import ler_grafo
 from grafo import Grafo
 from grafo_csr import GrafoCSR, ler_grafo_csr, montar_csr
@@ -114,6 +114,38 @@ class GrafoCSRTest(unittest.TestCase):
                             motor_c.dijkstra_c(grafo, 1, metodo)
 
 
+class GuardaDeTomadaTest(unittest.TestCase):
+    def test_espera_a_tomada_e_repete_medicao_que_pegou_bateria(self):
+        import threading
+        import time
+        from experimentos_p2 import GuardaDeTomada
+        with tempfile.TemporaryDirectory() as pasta:
+            online = Path(pasta) / "online"
+            online.write_text("1\n")
+            avisos = []
+            guarda = GuardaDeTomada(online, avisar=lambda *a, **k: avisos.append(a[0]), intervalo=0.05)
+            self.assertEqual(guarda.medir(lambda: 42, "rápida"), 42)
+            self.assertEqual(guarda.repeticoes, 0)
+
+            chamadas = []
+
+            def medicao_com_queda():
+                chamadas.append(1)
+                if len(chamadas) == 1:  # a bateria entra durante a primeira medição
+                    online.write_text("0\n")
+                    time.sleep(1.3)
+                    online.write_text("1\n")
+                return len(chamadas)
+
+            self.assertEqual(guarda.medir(medicao_com_queda, "longa"), 2)
+            self.assertEqual(guarda.repeticoes, 1)
+
+            online.write_text("0\n")
+            threading.Timer(0.2, lambda: online.write_text("1\n")).start()
+            self.assertEqual(guarda.medir(lambda: "ok", "após espera"), "ok")
+            self.assertTrue(any("pausadas" in aviso for aviso in avisos))
+
+
 @precisa_c
 class MotorCTest(unittest.TestCase):
     def test_c_igual_ao_python_e_a_bellman_ford(self):
@@ -155,6 +187,41 @@ class MotorCTest(unittest.TestCase):
             for metodo in ("vetor", "heap"):
                 resultado = motor_c.dijkstra_c(csr, origem, metodo)
                 self.assertTrue(all(np.array_equal(a, b) for a, b in zip(referencia, resultado)))
+
+    def test_contagem_de_operacoes_igual_ao_python(self):
+        # As quatro configurações fazem as mesmas operações na fila; o C conta
+        # sob demanda e deve concordar com uma fila Python instrumentada.
+        class Contadora:
+            def __init__(self, classe):
+                self.classe, self.atualizacoes, self.extracoes = classe, 0, 0
+
+            def __call__(self, distancias):
+                fila = self.classe(distancias)
+                atualizar, extrair = fila.atualizar, fila.extrair_minimo
+
+                def contando_atualizar(v):
+                    self.atualizacoes += 1
+                    atualizar(v)
+
+                def contando_extrair():
+                    v = extrair()
+                    self.extracoes += v is not None
+                    return v
+
+                fila.atualizar, fila.extrair_minimo = contando_atualizar, contando_extrair
+                return fila
+
+        rng = random.Random(17)
+        for _ in range(15):
+            n = rng.randint(1, 40)
+            _, csr = montar_os_dois(n, grafo_aleatorio(rng, n, rng.randint(0, 120), pesos=(0, 1, 2, 3)))
+            for origem in range(1, n + 1):
+                for metodo in ("vetor", "heap"):
+                    contadora = Contadora(FILAS[metodo])
+                    dijkstra(csr, origem, contadora)
+                    execucao = motor_c.executar_c(csr, origem, metodo, contar=True)
+                    self.assertEqual((execucao.extracoes, execucao.atualizacoes),
+                                     (contadora.extracoes, contadora.atualizacoes))
 
     def test_leitores_produzem_o_mesmo_csr(self):
         rng = random.Random(3)
@@ -218,9 +285,10 @@ class MotorCTest(unittest.TestCase):
             motor_c.dijkstra_c(grafo, 1, "inexistente")
         with self.assertRaises(TypeError):
             motor_c.dijkstra_c(ler_grafo("exemplo_p2.txt"), 1)
-        distancias, pais, segundos, extracoes = motor_c.executar_c(grafo, 1, "vetor")
+        distancias, pais, segundos, extracoes, atualizacoes = motor_c.executar_c(grafo, 1, "vetor")
         self.assertGreaterEqual(segundos, 0.0)
         self.assertEqual(extracoes, 5)  # o vértice 6 é isolado
+        self.assertIsNone(atualizacoes)  # só é contada quando pedida
         self.assertEqual(reconstruir_caminho(pais, 1, 3), [1, 2, 5, 4, 3])
         self.assertEqual(reconstruir_caminho(pais, 1, 1), [1])
         with tempfile.TemporaryDirectory() as pasta:
