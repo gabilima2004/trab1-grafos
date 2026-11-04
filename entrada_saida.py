@@ -3,7 +3,6 @@ from grafo import Grafo
 
 
 def ler_cabecalho(nome_arquivo):
-    """Retorna (número de vértices, ponderado) lendo só o início do arquivo."""
     nome_arquivo = str(nome_arquivo)
     abrir = gzip.open if nome_arquivo.endswith(".gz") else open
     with abrir(nome_arquivo, "rt") as arquivo:
@@ -15,11 +14,7 @@ def ler_cabecalho(nome_arquivo):
 
 
 def ler_grafo(nome_arquivo, representacao="lista", ponderado=None):
-    """Detecta duas ou três colunas; ponderado força o formato, se informado.
-
-    representacao="csr" devolve um GrafoCSR compacto (grafo_csr.py), para
-    grafos ponderados grandes; exige numpy.
-    """
+    """Detecta duas ou três colunas; ponderado força o formato, se informado."""
     if representacao == "csr":
         if ponderado is False:
             raise ValueError("A representação CSR é para grafos ponderados.")

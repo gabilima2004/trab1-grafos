@@ -1,25 +1,3 @@
-"""Grafo ponderado compacto (CSR) para os grafos grandes da parte 2.
-
-A lista de adjacência de `Grafo` guarda uma tupla (vizinho, peso) por
-extremidade de aresta: cerca de 235 bytes por aresta, ou 17 GB para
-grafo_W_6. Aqui as adjacências de todos os vértices ficam em três vetores
-numpy contíguos, no formato CSR ("compressed sparse row"):
-
-    inicio[u] .. inicio[u + 1] - 1   posições dos vizinhos de u
-    adjacentes[posição]              vizinho (int32)
-    pesos[posição]                   peso da aresta (float64)
-
-São 12 bytes por extremidade de aresta e 8 bytes por vértice. Cada aresta
-aparece nas duas direções, na ordem do arquivo, exatamente como na lista de
-`Grafo`; por isso Dijkstra produz as mesmas distâncias e os mesmos pais nas
-duas estruturas. O grafo é somente leitura.
-
-`GrafoCSR` oferece a mesma interface de consulta de `Grafo` (`vizinhos`,
-`vizinhos_com_pesos`, `grau`, `validar_vertice`...), então o Dijkstra de
-`caminhos_minimos.py`, as buscas e as estatísticas da parte 1 funcionam sem
-alteração. Os mesmos vetores são entregues ao motor C (`motor_c.py`).
-"""
-
 import gzip
 import warnings
 from math import isfinite
@@ -40,7 +18,6 @@ class GrafoCSR:
         inicio = np.ascontiguousarray(inicio, dtype=np.int64)
         adjacentes = np.ascontiguousarray(adjacentes, dtype=np.int32)
         pesos = np.ascontiguousarray(pesos, dtype=np.float64)
-        # O motor C confia nestes invariantes para não ler fora dos vetores.
         if (inicio.shape != (n + 2,) or adjacentes.shape != pesos.shape
                 or adjacentes.ndim != 1 or adjacentes.size % 2
                 or inicio[0] != 0 or inicio[1] != 0 or inicio[-1] != adjacentes.size
@@ -57,9 +34,6 @@ class GrafoCSR:
         self.adjacentes = adjacentes
         self.pesos = pesos
         self.tem_peso_negativo = bool((pesos < 0).any())
-        # Visões sem cópia para o laço do Dijkstra em Python: indexar uma
-        # memoryview devolve int/float do Python tão rápido quanto uma lista,
-        # sem duplicar a memória (medido em grafo_W_3).
         self._inicio = memoryview(inicio)
         self._adjacentes = memoryview(adjacentes)
         self._pesos = memoryview(pesos)
@@ -90,15 +64,12 @@ class GrafoCSR:
 
 
 def montar_csr(numero_vertices, origens, destinos, pesos):
-    """Monta o CSR a partir das arestas (u, v, peso), na ordem dada."""
     origens = np.asarray(origens, dtype=np.int32)
     destinos = np.asarray(destinos, dtype=np.int32)
     pesos = np.asarray(pesos, dtype=np.float64)
     m = origens.size
     if destinos.size != m or pesos.size != m:
         raise ValueError("Vetores de arestas com tamanhos diferentes.")
-    # Extremidades intercaladas (u→v, v→u, ...) e ordenação estável: cada
-    # vértice recebe seus vizinhos na ordem das linhas do arquivo.
     fontes = np.empty(2 * m, np.int32)
     fontes[0::2] = origens
     fontes[1::2] = destinos
@@ -123,11 +94,6 @@ def _abrir(nome_arquivo):
 
 
 def _localizar_erro(nome_arquivo):
-    """Relê o arquivo linha a linha para informar a primeira linha inválida.
-
-    Só é chamada quando a leitura rápida já detectou um problema, e repete
-    as verificações de `entrada_saida.ler_grafo` para um grafo ponderado.
-    """
     with _abrir(nome_arquivo) as arquivo:
         numero_vertices = int(arquivo.readline())
         for numero_linha, linha in enumerate(arquivo, 2):
@@ -156,7 +122,6 @@ def _ler_numpy(nome_arquivo):
             raise ValueError("Linha 1: número de vértices inválido.") from erro
         try:
             with warnings.catch_warnings():
-                # Arquivo sem arestas: grafo com vértices isolados.
                 warnings.filterwarnings("ignore", "loadtxt: input contained no data")
                 arestas = np.loadtxt(arquivo, dtype=TIPO_ARESTA, comments=None, ndmin=1)
         except (ValueError, OverflowError) as erro:
@@ -172,12 +137,6 @@ def _ler_numpy(nome_arquivo):
 
 
 def ler_grafo_csr(nome_arquivo, leitor="numpy"):
-    """Lê um grafo ponderado (.txt ou .txt.gz, três colunas) para GrafoCSR.
-
-    leitor="numpy" usa np.loadtxt; leitor="c" usa o leitor do motor C
-    (zlib + strtod), mais rápido e com menor pico de memória. Os dois
-    produzem vetores idênticos.
-    """
     if leitor == "numpy":
         return _ler_numpy(nome_arquivo)
     if leitor == "c":

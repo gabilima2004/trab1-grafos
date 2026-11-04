@@ -1,10 +1,4 @@
-"""Consulta da rede de pesquisadores com correspondência exata dos nomes.
-
-Aceita o arquivo oficial de vértices da disciplina (uma linha "índice,nome"
-por vértice, em UTF-8) ou um JSON {nome: índice}:
-
-    .venv/bin/python colaboracao.py rede_colaboracao.txt rede_colaboracao_vertices.txt
-"""
+"""Consulta da rede de pesquisadores com correspondência exata dos nomes."""
 
 import argparse
 import json
@@ -49,12 +43,6 @@ def ler_pesquisadores(nome_arquivo, grafo):
 
 
 def ler_vertices_rede(nome_arquivo, grafo):
-    """Lê o arquivo oficial: uma linha "índice,nome" por vértice, em UTF-8.
-
-    O nome é o texto após a primeira vírgula. Devolve a lista nomes[índice]
-    (posição 0 sem uso). Homônimos são aceitos: o arquivo oficial tem três
-    nomes repetidos, nenhum deles entre os seis pesquisadores do enunciado.
-    """
     nomes = [None] * (grafo.numero_vertices + 1)
     with open(nome_arquivo, encoding="utf-8-sig") as arquivo:
         for numero_linha, linha in enumerate(arquivo, 1):
@@ -76,7 +64,6 @@ def ler_vertices_rede(nome_arquivo, grafo):
 
 
 def indices_exigidos(nomes_por_indice):
-    """{nome: índice} dos seis pesquisadores; cada nome deve aparecer uma única vez."""
     procurados = {nome: [] for nome in (ORIGEM, *DESTINOS)}
     for indice, nome in enumerate(nomes_por_indice):
         if nome in procurados:
@@ -90,8 +77,6 @@ def indices_exigidos(nomes_por_indice):
 
 
 def estudo_colaboracao(grafo, nomes, nomes_por_indice=None, motor="python"):
-    """nomes: {nome: índice} com os seis pesquisadores; nomes_por_indice, se
-    informado, nomeia qualquer vértice das rotas (inclusive homônimos)."""
     origem = nomes[ORIGEM]
     if motor == "c":
         from motor_c import dijkstra_c

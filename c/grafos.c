@@ -1,4 +1,3 @@
-/* Motor C: leitura para CSR e Dijkstra com vetor ou heap (ver grafos.h). */
 #define _GNU_SOURCE
 #include "grafos.h"
 
@@ -11,10 +10,6 @@
 #include <string.h>
 #include <time.h>
 #include <zlib.h>
-
-/* ------------------------------------------------------------------ */
-/* Leitura                                                            */
-/* ------------------------------------------------------------------ */
 
 #define TAMANHO_LINHA 4096
 
@@ -42,8 +37,6 @@ static int eh_espaco(char c)
     return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\v' || c == '\f';
 }
 
-/* Separa os campos da linha (terminando cada um com '\0') e devolve
- * quantos existem; guarda no máximo `maximo` ponteiros em campos. */
 static int separar_campos(char *linha, char **campos, int maximo)
 {
     int total = 0;
@@ -64,8 +57,6 @@ static int separar_campos(char *linha, char **campos, int maximo)
     }
 }
 
-/* Inteiro decimal com sinal opcional. Valores enormes saturam, para que a
- * verificação de intervalo produza a mensagem de erro. */
 static int ler_inteiro(const char *s, int64_t *valor)
 {
     int negativo = (*s == '-');
@@ -86,7 +77,6 @@ static int ler_inteiro(const char *s, int64_t *valor)
 
 static locale_t locale_c(void)
 {
-    /* strtod depende do locale; o arquivo sempre usa ponto decimal. */
     static locale_t c = (locale_t) 0;
     if (c == (locale_t) 0)
         c = newlocale(LC_NUMERIC_MASK, "C", (locale_t) 0);
@@ -125,7 +115,6 @@ void gr_liberar_leitura(GrLeitura *leitura)
 int32_t gr_leitura_vertices(const GrLeitura *leitura) { return leitura->n; }
 int64_t gr_leitura_arestas(const GrLeitura *leitura) { return leitura->m; }
 
-/* Lê a próxima linha; devolve 0 no fim do arquivo e -1 se ela não couber. */
 static int proxima_linha(gzFile arquivo, char *linha)
 {
     if (gzgets(arquivo, linha, TAMANHO_LINHA) == NULL)
@@ -143,7 +132,6 @@ static int proxima_linha(gzFile arquivo, char *linha)
         goto falha;                                           \
     } while (0)
 
-/* Confere se a leitura parou por erro da zlib, e não pelo fim do arquivo. */
 static int erro_de_leitura(gzFile arquivo, const char *caminho, char *erro, size_t tamanho_erro)
 {
     int codigo_zlib;
@@ -171,7 +159,6 @@ GrLeitura *gr_ler_arestas(const char *caminho, int *codigo, char *erro, size_t t
         mensagem(erro, tamanho_erro, "Memória insuficiente.");
         return NULL;
     }
-    /* gzopen também lê arquivos sem compressão. */
     gzFile arquivo = gzopen(caminho, "rb");
     if (arquivo == NULL) {
         *codigo = GR_ERRO_ARQUIVO;
@@ -242,7 +229,6 @@ int gr_montar_csr(const GrLeitura *leitura, int64_t *inicio, int32_t *adjacentes
 {
     int32_t n = leitura->n;
     int64_t m = leitura->m;
-    /* Contagem dos graus e soma de prefixos: inicio[x] = soma dos graus < x. */
     memset(inicio, 0, ((size_t) n + 2) * sizeof *inicio);
     for (int64_t e = 0; e < m; e++) {
         inicio[leitura->u[e] + 1]++;
@@ -254,7 +240,6 @@ int gr_montar_csr(const GrLeitura *leitura, int64_t *inicio, int32_t *adjacentes
     if (proximo == NULL)
         return GR_ERRO_MEMORIA;
     memcpy(proximo, inicio, ((size_t) n + 1) * sizeof *proximo);
-    /* Linha a linha, u→v e depois v→u: mesma ordem da lista de Grafo. */
     for (int64_t e = 0; e < m; e++) {
         int32_t u = leitura->u[e], v = leitura->v[e];
         double peso = leitura->peso[e];
@@ -269,34 +254,23 @@ int gr_montar_csr(const GrLeitura *leitura, int64_t *inicio, int32_t *adjacentes
     return GR_OK;
 }
 
-/* ------------------------------------------------------------------ */
-/* Filas de prioridade                                                */
-/* ------------------------------------------------------------------ */
-
-/* Dijkstra só conhece estas duas operações; a fila escolhida decide como
- * as estimativas são guardadas e como o mínimo é extraído. */
 typedef struct Fila Fila;
 struct Fila {
-    void (*atualizar)(Fila *fila, int32_t v);  /* insere v ou o reposiciona após dist[v] diminuir */
-    int32_t (*extrair_minimo)(Fila *fila);     /* menor (dist, vértice) ativo; 0 se vazia */
+    void (*atualizar)(Fila *fila, int32_t v);
+    int32_t (*extrair_minimo)(Fila *fila);
     const double *dist;
     int32_t n;
-    /* vetor */
-    double *chave;      /* chave[v] = dist[v] se v está ativo; +inf caso contrário */
+    double *chave;
     int64_t ativos;
-    /* heap */
-    int32_t *heap;      /* heap binário de vértices */
-    int32_t *posicao;   /* posicao[v] no heap, ou -1 */
+    int32_t *heap;
+    int32_t *posicao;
     int32_t tamanho;
-    /* execução parcial */
     int32_t (*extrair_sem_prazo)(Fila *fila);
     double prazo;
-    /* contagem de atualizações */
     void (*atualizar_sem_contagem)(Fila *fila, int32_t v);
     int64_t atualizacoes;
 };
 
-/* Vetor: atualizar custa O(1); extrair percorre os n vértices, O(n). */
 static void vetor_atualizar(Fila *fila, int32_t v)
 {
     if (fila->chave[v] == INFINITY)
@@ -304,11 +278,6 @@ static void vetor_atualizar(Fila *fila, int32_t v)
     fila->chave[v] = fila->dist[v];
 }
 
-/* A varredura percorre os n vértices em blocos de 64: o mínimo de cada bloco
- * é uma redução que o compilador transforma em instruções SIMD (#pragma omp
- * simd) e só o bloco vencedor é relido para achar o índice. Continua O(n)
- * por extração; em grafo_W_3 ficou 9 vezes mais rápida que o laço simples,
- * que não vetoriza por acompanhar o índice do mínimo. */
 enum { BLOCO = 64 };
 
 static int32_t vetor_extrair_minimo(Fila *fila)
@@ -325,7 +294,6 @@ static int32_t vetor_extrair_minimo(Fila *fila)
 #pragma omp simd reduction(min : minimo)
         for (int64_t v = bloco; v < fim; v++)
             minimo = chave[v] < minimo ? chave[v] : minimo;
-        /* Estrito: em empates vence o primeiro bloco, logo o menor vértice. */
         if (minimo < melhor) {
             melhor = minimo;
             bloco_melhor = bloco;
@@ -339,13 +307,11 @@ static int32_t vetor_extrair_minimo(Fila *fila)
     return menor;
 }
 
-/* Heap: ordem por (dist, vértice), a mesma de prioridades.HeapIndexado. */
 static int precede(const double *dist, int32_t a, int32_t b)
 {
     return dist[a] < dist[b] || (dist[a] == dist[b] && a < b);
 }
 
-/* Insere v ou o sobe após a redução de dist[v]: O(log n). */
 static void heap_atualizar(Fila *fila, int32_t v)
 {
     int32_t *heap = fila->heap;
@@ -392,8 +358,6 @@ static int32_t heap_extrair_minimo(Fila *fila)
     return minimo;
 }
 
-/* Usada só em execuções parciais: a fila "esvazia" quando o prazo acaba.
- * Nas execuções completas o laço chama a fila diretamente, sem este teste. */
 static double agora(void);
 
 static int32_t extrair_com_prazo(Fila *fila)
@@ -403,7 +367,6 @@ static int32_t extrair_com_prazo(Fila *fila)
     return fila->extrair_sem_prazo(fila);
 }
 
-/* Usada só quando a contagem é pedida, como extrair_com_prazo. */
 static void atualizar_contando(Fila *fila, int32_t v)
 {
     fila->atualizacoes++;
@@ -439,14 +402,10 @@ static int criar_fila(Fila *fila, int tipo, const double *dist, int32_t n)
             liberar_fila(fila);
             return GR_ERRO_MEMORIA;
         }
-        memset(fila->posicao, 0xff, ((size_t) n + 1) * sizeof *fila->posicao);  /* -1 */
+        memset(fila->posicao, 0xff, ((size_t) n + 1) * sizeof *fila->posicao);
     }
     return GR_OK;
 }
-
-/* ------------------------------------------------------------------ */
-/* Dijkstra: um único laço para as duas filas                         */
-/* ------------------------------------------------------------------ */
 
 static double agora(void)
 {

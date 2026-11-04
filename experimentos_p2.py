@@ -1,17 +1,4 @@
-"""Estudos de caso dos grafos ponderados: caminhos a partir de 10 e tempos.
-
-Compara até quatro configurações de Dijkstra, motor Python ou C e fila vetor
-ou heap, sobre as mesmas origens sorteadas. Só a chamada a Dijkstra é
-cronometrada; leitura, verificação e escrita ficam fora do cronômetro.
-
-    .venv/bin/python experimentos_p2.py grafo_W_3.txt.gz grafo_W_4.txt.gz --cpu 0
-
-Cada configuração tem um orçamento de tempo por grafo (--limite). Quando nem
-uma execução cabe no orçamento, o tempo médio é estimado por uma execução
-parcial (--sonda): tempo por vértice extraído da fila × número médio de
-vértices alcançados pelas origens. Os resultados de cada grafo ficam em
-resultados_p2/<grafo>.json e as tabelas são regeneradas em tabelas_p2.md.
-"""
+"""Estudos de caso ponderados. Leitura e escrita ficam fora do cronômetro."""
 
 import argparse
 import gc
@@ -34,8 +21,6 @@ from entrada_saida import ler_grafo
 
 ORIGEM_CAMINHOS = 10
 DESTINOS = (20, 30, 40, 50, 60)
-# As mais rápidas primeiro: a primeira execução de cada origem é a referência
-# das demais, e o número de vértices que ela alcança orienta as estimativas.
 CONFIGURACOES = (("c", "heap"), ("python", "heap"), ("c", "vetor"), ("python", "vetor"))
 
 
@@ -49,7 +34,6 @@ def nome_configuracao(motor, fila):
 
 @contextmanager
 def sem_coleta_de_lixo():
-    """Como no timeit: a coleta de lixo não interrompe a medição."""
     ativa = gc.isenabled()
     gc.disable()
     try:
@@ -60,14 +44,6 @@ def sem_coleta_de_lixo():
 
 
 class GuardaDeTomada:
-    """Faz as medições acontecerem só com o computador na tomada.
-
-    Na bateria, o processador reduz a frequência: o mesmo Dijkstra ficou de
-    11% (C com heap) a 56% (Python com heap) mais lento. Antes de cada medição, a guarda espera a
-    tomada; durante a medição, uma thread confere a tomada a cada segundo, e
-    a medição que pegar algum momento na bateria é descartada e repetida.
-    """
-
     def __init__(self, arquivo_online, avisar=print, intervalo=15.0):
         self.arquivo_online = Path(arquivo_online)
         self.avisar = avisar
@@ -76,7 +52,6 @@ class GuardaDeTomada:
 
     @classmethod
     def do_sistema(cls, avisar=print):
-        """Guarda da fonte externa (tipo Mains) do Linux, ou None se não houver."""
         for fonte in sorted(Path("/sys/class/power_supply").glob("*")):
             try:
                 if (fonte / "type").read_text().strip() == "Mains":
@@ -97,7 +72,6 @@ class GuardaDeTomada:
         self.avisar("Na tomada de novo: medições retomadas.", flush=True)
 
     def medir(self, funcao, descricao):
-        """Executa funcao() na tomada e a repete se a bateria entrar no meio."""
         while True:
             self.aguardar()
             sempre_na_tomada = [True]
@@ -122,12 +96,6 @@ class GuardaDeTomada:
 
 
 class FilaComPrazo:
-    """Fábrica de filas que encerram o Dijkstra num prazo (execução parcial).
-
-    Ao fim do prazo, extrair_minimo devolve None, como uma fila vazia, e o
-    laço de caminhos_minimos.dijkstra termina normalmente.
-    """
-
     def __init__(self, classe, segundos):
         self.classe = classe
         self.segundos = segundos
@@ -153,10 +121,6 @@ class FilaComPrazo:
 
 
 def executar(grafo, motor, fila, origem):
-    """Uma execução completa e cronometrada.
-
-    Devolve (segundos, segundos medidos dentro do C ou None, (distancias, pais)).
-    """
     if motor == "c":
         from motor_c import executar_c
     with sem_coleta_de_lixo():
@@ -172,7 +136,6 @@ def executar(grafo, motor, fila, origem):
 
 
 def sondar(grafo, motor, fila, origem, segundos):
-    """Execução parcial com prazo: devolve (segundos, vértices extraídos, completa)."""
     with sem_coleta_de_lixo():
         if motor == "c":
             from motor_c import executar_c
@@ -185,8 +148,6 @@ def sondar(grafo, motor, fila, origem, segundos):
 
 
 def impressao_digital(distancias, pais):
-    """Resumo de distâncias e pais, igual nos dois motores quando os vetores
-    coincidem bit a bit (o motor Python usa None onde o C usa 0)."""
     resumo = hashlib.blake2b(digest_size=16)
     if isinstance(distancias, list):
         resumo.update(array("d", distancias))
@@ -239,7 +200,6 @@ def ambiente():
 
 
 def estudo_caminhos(grafo, motores):
-    """Uma árvore a partir de 10 em cada motor; os resultados devem coincidir."""
     caminhos, digitais = None, set()
     for motor in motores:
         _, _, (distancias, pais) = executar(grafo, motor, "heap", ORIGEM_CAMINHOS)
@@ -255,14 +215,11 @@ def estudo_caminhos(grafo, motores):
 
 
 def decidir_por_sonda(grafo, estado, origem, sonda, alcance, numero_vertices, medir):
-    """Executa uma sonda e decide entre medir ou estimar a configuração."""
     orcamento = min(sonda, estado["limite"])
     segundos, extracoes, completa = medir(
         lambda: sondar(grafo, estado["motor"], estado["fila"], origem, orcamento),
         f"sonda {nome_configuracao(estado['motor'], estado['fila'])}")
     por_extracao = segundos / max(extracoes, 1)
-    # Cota conservadora para uma execução: a origem pode estar numa componente
-    # pequena, então vale o maior alcance já observado (ou n).
     maior_alcance = max(alcance.values(), default=numero_vertices)
     uma_execucao = segundos if completa and extracoes >= maior_alcance else por_extracao * maior_alcance
     estado["sonda"] = {"origem": origem, "segundos": segundos, "extracoes": extracoes,
@@ -276,11 +233,6 @@ def decidir_por_sonda(grafo, estado, origem, sonda, alcance, numero_vertices, me
 def executar_estudo(nome, k=100, semente=242, representacao="lista", motores=("python",),
                     filas=("vetor", "heap"), limite=None, sonda=60.0, leitor="numpy",
                     k_config=None, limite_config=None, avisar=print, guarda=None):
-    """Roda os dois estudos de caso em um grafo e devolve um dicionário.
-
-    guarda (GuardaDeTomada), se informada, só deixa medir na tomada.
-    """
-
     def medir(funcao, descricao):
         return guarda.medir(funcao, f"{titulo} {descricao}") if guarda else funcao()
 
@@ -371,15 +323,11 @@ def media(configuracao):
     return configuracao["estimativa_media"], True
 
 
-# Quantis da t de Student (bilateral, 95%) por graus de liberdade. Entre duas
-# entradas vale a de menos graus (intervalo um pouco mais largo); acima de
-# 120, o da normal.
 QUANTIS_T95 = {1: 12.706, 2: 4.303, 3: 3.182, 4: 2.776, 5: 2.571, 6: 2.447, 7: 2.365, 8: 2.306,
                9: 2.262, 10: 2.228, 15: 2.131, 20: 2.086, 30: 2.042, 40: 2.021, 60: 2.000, 120: 1.980}
 
 
 def dispersao(tempos):
-    """Desvio padrão amostral e meia-largura do intervalo de 95% da média."""
     if len(tempos) < 2:
         return None, None
     desvio = statistics.stdev(tempos)
@@ -389,10 +337,6 @@ def dispersao(tempos):
 
 
 def energia(resultado):
-    """Como a energia ficou durante a medição (ver GuardaDeTomada).
-
-    Resultados medidos antes da guarda trazem uma observação escrita à parte.
-    """
     if resultado.get("so_na_tomada"):
         return (f"Medido só na tomada; {resultado['medicoes_repetidas']} execuções repetidas "
                 "por pegarem bateria.")
@@ -460,7 +404,6 @@ def tabela_comparativa(resultados):
 
 
 def carregar_perfis(pasta):
-    """Perfis de recursos gravados por perfil_p2.py, por nome do grafo."""
     perfis = (json.loads(arquivo.read_text(encoding="utf-8"))
               for arquivo in sorted((Path(pasta) / "perfil").glob("*.json")))
     return {perfil["grafo"]: perfil for perfil in perfis}
@@ -473,8 +416,6 @@ def operacoes_medias(perfil):
 
 
 def custos_por_operacao(resultado, perfil):
-    """Vetor: ns por vértice percorrido (cada extração percorre os n vértices).
-    Heap: milhões de arcos examinados por segundo. Devolve {config: (valor, estimado)}."""
     operacoes = operacoes_medias(perfil)
     custos = {}
     for cfg in resultado["configuracoes"]:
@@ -552,7 +493,6 @@ def escrever_tabelas(pasta, saida):
 
 
 def estudo_grafo(nome, k=100, semente=242, representacao="lista", **opcoes):
-    """Compatível com a versão anterior: devolve a seção Markdown do grafo."""
     return markdown_grafo(executar_estudo(nome, k, semente, representacao, **opcoes))
 
 
@@ -567,8 +507,7 @@ def ler_pares(pares, conversao):
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__,
-                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("grafos", nargs="*")
     parser.add_argument("--k", type=int, default=100, help="origens sorteadas (padrão 100)")
     parser.add_argument("--semente", type=int, default=242)
@@ -617,7 +556,6 @@ def main():
             filas=tuple(args.filas.split(",")), limite=args.limite or None, sonda=args.sonda,
             leitor=leitor, k_config=ler_pares(args.k_config, int),
             limite_config=ler_pares(args.limite_config, float), guarda=guarda)
-        # Grava cada grafo concluído, preservando resultados de execuções longas.
         destino = pasta / f"{Path(nome).name}.json"
         destino.write_text(json.dumps(resultado, ensure_ascii=False, indent=1), encoding="utf-8")
         escrever_tabelas(pasta, args.saida)

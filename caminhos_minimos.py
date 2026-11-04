@@ -12,8 +12,6 @@ def dijkstra(grafo, origem, implementacao="heap"):
 
     Inalcançáveis têm distância inf e pai None. A raiz tem pai None.
     Pesos zero são aceitos; qualquer peso negativo impede a execução.
-    implementacao é "vetor", "heap" ou uma fábrica de fila: chamada com o
-    vetor de distâncias, devolve um objeto com atualizar(v) e extrair_minimo().
     """
     grafo.validar_vertice(origem)
     if grafo.tem_peso_negativo:
@@ -44,15 +42,12 @@ def dijkstra(grafo, origem, implementacao="heap"):
 
 
 def reconstruir_caminho(pais, origem, destino):
-    """Retorna os vértices da rota ou [] quando não há caminho.
-
-    Aceita pais com None (motor Python) ou 0 (motor C) para "sem pai".
-    """
+    """Retorna os vértices da rota ou [] quando não há caminho."""
     if not 1 <= origem < len(pais) or not 1 <= destino < len(pais):
         raise ValueError("Origem ou destino inválido.")
     caminho = []
     atual = destino
-    while atual:  # None e 0 marcam ausência de pai
+    while atual:
         caminho.append(int(atual))
         if atual == origem:
             return caminho[::-1]

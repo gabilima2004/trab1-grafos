@@ -1,13 +1,3 @@
-# Motor C (c/libgrafos.so), carregado por motor_c.py via ctypes.
-#   make          compila a biblioteca
-#   make testes   roda os testes com o Python do ambiente virtual
-#   make limpar   apaga a biblioteca compilada
-#
-# -march=native otimiza para o processador local (inclui instruções SIMD);
-# -ffp-contract=off impede que somas virem operações fundidas, mantendo as
-# distâncias idênticas às do Python bit a bit; -fopenmp-simd ativa o
-# "#pragma omp simd" da varredura do vetor (sem threads nem runtime OpenMP).
-
 CC ?= gcc
 CFLAGS ?= -O2 -march=native
 OPCOES = -std=gnu11 -Wall -Wextra -fPIC -ffp-contract=off -fopenmp-simd

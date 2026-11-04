@@ -14,8 +14,6 @@ from distancias import distancia, diametro, diametro_aproximado, INFINITO
 from saida import salvar_arvore
 from caminhos_minimos import dijkstra, reconstruir_caminho, salvar_caminhos
 
-# Mesmo limite da parte 1 (experimentos.LIMITE_MATRIZ = 50000 vértices):
-# cerca de 2,5 GB. A matriz ponderada usa 8 bytes por posição.
 LIMITE_MATRIZ_BYTES = 50_001 ** 2
 
 
@@ -42,7 +40,6 @@ def escolher_representacao():
 
 
 def representacao_viavel(nome_arquivo, representacao):
-    """Troca a matriz por outra representação quando ela não cabe na memória."""
     if representacao != "matriz":
         return representacao
     numero_vertices, ponderado = ler_cabecalho(nome_arquivo)
@@ -149,7 +146,6 @@ def mostrar_componentes(grafo):
 
 
 def escolher_motor(grafo):
-    """O motor C (make) roda sobre a representação CSR."""
     if grafo.representacao != "csr":
         return "python"
     from motor_c import disponivel

@@ -1,13 +1,3 @@
-"""Motor C: leitura e Dijkstra compilados (c/libgrafos.so), chamados via ctypes.
-
-Compile com `make`. As funções trabalham sobre os mesmos vetores numpy de
-GrafoCSR, sem cópia. O laço de Dijkstra e as duas filas (vetor e heap
-indexado) em c/grafos.c espelham caminhos_minimos.py e prioridades.py:
-mesma ordem de extração por (distância, vértice) e mesmas somas em ponto
-flutuante. Assim, os dois motores produzem distâncias e pais idênticos e a
-comparação de tempos mede apenas a linguagem e a fila de prioridade.
-"""
-
 import ctypes
 import os
 from collections import namedtuple
@@ -18,15 +8,12 @@ import numpy as np
 from caminhos_minimos import MENSAGEM_PESO_NEGATIVO
 from grafo_csr import GrafoCSR
 
-# GRAFOS_BIBLIOTECA permite usar outra compilação sem sobrescrever a oficial.
 CAMINHO_BIBLIOTECA = Path(os.environ.get("GRAFOS_BIBLIOTECA")
                           or Path(__file__).resolve().parent / "c" / "libgrafos.so")
 FILAS = {"vetor": 0, "heap": 1}
 _ERRO_ARQUIVO, _ERRO_MEMORIA = 1, 3
 _biblioteca = None
 
-# segundos: tempo medido dentro do C; extracoes: vértices extraídos da fila;
-# atualizacoes: chamadas a atualizar (None quando a contagem não foi pedida).
 ExecucaoC = namedtuple("ExecucaoC", "distancias pais segundos extracoes atualizacoes")
 
 
@@ -70,12 +57,10 @@ def _carregar():
 
 
 def compilacao():
-    """Compilador e opções com que c/libgrafos.so foi gerada."""
     return _carregar().gr_compilacao().decode()
 
 
 def ler_csr(nome_arquivo):
-    """Lê um grafo ponderado (.txt ou .txt.gz) direto para GrafoCSR, em C."""
     biblioteca = _carregar()
     codigo = ctypes.c_int()
     erro = ctypes.create_string_buffer(1024)
@@ -91,7 +76,6 @@ def ler_csr(nome_arquivo):
     try:
         n = biblioteca.gr_leitura_vertices(leitura)
         m = biblioteca.gr_leitura_arestas(leitura)
-        # O Python aloca o CSR e fica dono da memória; o C só preenche.
         inicio = np.empty(n + 2, np.int64)
         adjacentes = np.empty(2 * m, np.int32)
         pesos = np.empty(2 * m, np.float64)
@@ -103,15 +87,6 @@ def ler_csr(nome_arquivo):
 
 
 def executar_c(grafo, origem, implementacao="heap", limite_segundos=0.0, contar=False):
-    """Dijkstra no motor C, com as mesmas validações de caminhos_minimos.dijkstra.
-
-    Devolve ExecucaoC(distancias, pais, segundos, extracoes, atualizacoes):
-    vetores numpy com n + 1 posições, em que pais usa 0, e não None, para a
-    origem e para os inalcançáveis. limite_segundos > 0 interrompe a execução no prazo
-    (execução parcial, para estimar o tempo de execuções longas demais).
-    contar=True também conta as chamadas a atualizar da fila; a contagem fica
-    fora do laço principal e só existe quando pedida.
-    """
     if not isinstance(grafo, GrafoCSR):
         raise TypeError("O motor C requer um GrafoCSR: use ler_grafo(arquivo, 'csr').")
     grafo.validar_vertice(origem)
@@ -140,6 +115,5 @@ def executar_c(grafo, origem, implementacao="heap", limite_segundos=0.0, contar=
 
 
 def dijkstra_c(grafo, origem, implementacao="heap"):
-    """Mesma interface de caminhos_minimos.dijkstra: devolve (distancias, pais)."""
     execucao = executar_c(grafo, origem, implementacao)
     return execucao.distancias, execucao.pais

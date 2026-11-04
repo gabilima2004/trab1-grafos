@@ -1,46 +1,20 @@
-"""Perfil de recursos de Dijkstra: memória, CPU e contagem de operações.
-
-Complementa experimentos_p2.py, que mede só o tempo. Para cada grafo e
-configuração (motor Python ou C, fila vetor ou heap), executa Dijkstra uma
-vez num processo novo, a partir da primeira origem do estudo de tempos, e
-mede:
-
-- o pico de memória da execução: o pico de memória residente (VmHWM) é
-  zerado antes da chamada, então o valor inclui os vetores de saída
-  (distâncias e pais) e as estruturas da fila, mas não o grafo;
-- o tempo de CPU de usuário e de sistema, o tempo de parede, as trocas de
-  contexto e as faltas de página (getrusage da thread que executa Dijkstra;
-  as bibliotecas numéricas ficam limitadas a uma thread).
-
-As configurações que o estudo de tempos só estimou (o vetor nos grafos
-grandes) rodam por um prazo curto. Com o motor C, conta também as extrações
-e as atualizações da fila (inserções e reduções de chave) em algumas
-origens: as quatro configurações fazem exatamente as mesmas operações.
-
-    .venv/bin/python perfil_p2.py grafo_W_3.txt grafo_W_4.txt --cpu 0
-
-Lê resultados_p2/<grafo>.json e grava resultados_p2/perfil/<grafo>.json.
-Usa /proc (Linux).
-"""
-
 import os
 
-# Sem threads auxiliares do numpy/OpenBLAS disputando o núcleo fixo.
 for _variavel in ("OPENBLAS_NUM_THREADS", "OMP_NUM_THREADS", "MKL_NUM_THREADS"):
     os.environ.setdefault(_variavel, "1")
 
-import argparse  # noqa: E402
-import ctypes  # noqa: E402
-import gc  # noqa: E402
-import json  # noqa: E402
-import resource  # noqa: E402
-import subprocess  # noqa: E402
-import sys  # noqa: E402
-from pathlib import Path  # noqa: E402
-from time import perf_counter  # noqa: E402
+import argparse
+import ctypes
+import gc
+import json
+import resource
+import subprocess
+import sys
+from pathlib import Path
+from time import perf_counter
 
-from caminhos_minimos import FILAS, dijkstra  # noqa: E402
-from experimentos_p2 import FilaComPrazo, ambiente, contar_alcancados, sem_coleta_de_lixo  # noqa: E402
+from caminhos_minimos import FILAS, dijkstra
+from experimentos_p2 import FilaComPrazo, ambiente, contar_alcancados, sem_coleta_de_lixo
 
 
 def status_kb(campo):
@@ -52,18 +26,11 @@ def status_kb(campo):
 
 
 def zerar_pico_de_memoria():
-    """Faz VmHWM voltar à memória residente atual (Linux 4.0 ou mais novo)."""
     with open("/proc/self/clear_refs", "w", encoding="ascii") as arquivo:
         arquivo.write("5")
 
 
 def devolver_memoria_livre():
-    """Devolve ao sistema as páginas livres do malloc (glibc).
-
-    Sem isso, as alocações medidas reaproveitam memória liberada que ainda
-    está residente (por exemplo, a das arestas lidas antes de montar o CSR)
-    e não aparecem no pico de memória residente.
-    """
     try:
         ctypes.CDLL(None).malloc_trim(0)
     except (OSError, AttributeError):
@@ -71,7 +38,6 @@ def devolver_memoria_livre():
 
 
 def medir(nome, motor, fila, origem, prazo):
-    """Uma execução medida; roda no processo filho."""
     from grafo_csr import ler_grafo_csr
     grafo = ler_grafo_csr(nome, "c")
     gc.collect()
@@ -109,12 +75,11 @@ def medir(nome, motor, fila, origem, prazo):
 
 
 def contar_operacoes(nome, origens):
-    """Extrações, atualizações e arcos examinados por origem (motor C, heap)."""
     import numpy as np
     from grafo_csr import ler_grafo_csr
     from motor_c import executar_c
     grafo = ler_grafo_csr(nome, "c")
-    graus = np.diff(grafo.inicio)  # graus[v] para v em 0..n
+    graus = np.diff(grafo.inicio)
     contagens = []
     for origem in origens:
         execucao = executar_c(grafo, origem, "heap", contar=True)
@@ -133,7 +98,6 @@ def perfil_grafo(nome, pasta_resultados, prazo, origens_contagem):
     print(f"{titulo}: operações contadas em {len(contagens)} origens", flush=True)
     medidas = []
     for configuracao in estudo["configuracoes"]:
-        # Só roda completa a configuração que o estudo de tempos conseguiu medir.
         prazo_cfg = 0.0 if configuracao["tempos"] else prazo
         comando = [sys.executable, __file__, "--medir", nome, configuracao["motor"], configuracao["fila"],
                    str(origens[0]), str(prazo_cfg)]
@@ -152,8 +116,7 @@ def main():
         nome, motor, fila, origem, prazo = sys.argv[2:7]
         print(json.dumps(medir(nome, motor, fila, int(origem), float(prazo))))
         return
-    parser = argparse.ArgumentParser(description=__doc__,
-                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser()
     parser.add_argument("grafos", nargs="+")
     parser.add_argument("--prazo", type=float, default=20,
                         help="segundos das execuções parciais (configurações estimadas)")

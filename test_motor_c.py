@@ -1,9 +1,3 @@
-"""Testes do grafo compacto (CSR) e do motor C: paridade com o código Python.
-
-Rode com o Python do ambiente virtual (numpy) depois de `make`:
-    .venv/bin/python -m unittest -v test_motor_c
-"""
-
 import gzip
 import random
 import tempfile
@@ -19,9 +13,8 @@ from entrada_saida import ler_grafo
 from grafo import Grafo
 from grafo_csr import GrafoCSR, ler_grafo_csr, montar_csr
 
-# Exemplo da figura 1 do enunciado, com o peso negativo -9.5.
 EXEMPLO_ENUNCIADO = "5\n1 2 0.1\n2 5 0.2\n5 3 5\n3 4 -9.5\n4 5 2.3\n1 5 1\n"
-PESOS = (0, 0.25, 1, 2.5, 9)  # somas exatas em binário
+PESOS = (0, 0.25, 1, 2.5, 9)
 precisa_c = unittest.skipUnless(motor_c.disponivel(), "motor C não compilado (rode make)")
 
 
@@ -41,7 +34,6 @@ def montar_os_dois(n, arestas):
 
 
 def como_vetores(distancias, pais):
-    """Converte o resultado do motor Python (listas, None) para o formato do C."""
     return (np.array(distancias, dtype=np.float64),
             np.array([0 if p is None else p for p in pais], dtype=np.int32))
 
@@ -65,7 +57,6 @@ class GrafoCSRTest(unittest.TestCase):
             lista, csr = montar_os_dois(n, arestas)
             self.assertEqual(csr.numero_arestas, len(arestas))
             for u in range(1, n + 1):
-                # Mesma ordem dos vizinhos (inclui laços e arestas paralelas).
                 self.assertEqual(list(csr.vizinhos_com_pesos(u)), list(lista.vizinhos_com_pesos(u)))
                 self.assertEqual(csr.vizinhos(u), lista.vizinhos(u))
                 self.assertEqual(csr.grau(u), lista.grau(u))
@@ -93,7 +84,7 @@ class GrafoCSRTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             ler_grafo("exemplo_p2.txt", "csr", ponderado=False)
         with self.assertRaises(ValueError):
-            GrafoCSR(2, [0, 0, 1, 1], [3], [1.0])  # vizinho fora do intervalo
+            GrafoCSR(2, [0, 0, 1, 1], [3], [1.0])
 
     def test_negativo_do_enunciado_recusado(self):
         with tempfile.TemporaryDirectory() as pasta:
@@ -131,7 +122,7 @@ class GuardaDeTomadaTest(unittest.TestCase):
 
             def medicao_com_queda():
                 chamadas.append(1)
-                if len(chamadas) == 1:  # a bateria entra durante a primeira medição
+                if len(chamadas) == 1:
                     online.write_text("0\n")
                     time.sleep(1.3)
                     online.write_text("1\n")
@@ -160,7 +151,6 @@ class MotorCTest(unittest.TestCase):
                 for metodo in ("vetor", "heap"):
                     distancias, pais = motor_c.dijkstra_c(csr, origem, metodo)
                     self.assertEqual(distancias.tolist(), esperado)
-                    # Mesma ordem de extração: pais idênticos, não só distâncias.
                     self.assertTrue(np.array_equal(distancias, referencia[0]))
                     self.assertTrue(np.array_equal(pais, referencia[1]))
                     for destino in range(1, n + 1):
@@ -174,8 +164,6 @@ class MotorCTest(unittest.TestCase):
                         self.assertEqual(soma, distancias[destino])
 
     def test_grafo_maior_com_empates(self):
-        # Pesos inteiros pequenos geram muitos empates: o desempate pelo menor
-        # vértice precisa ser o mesmo nas quatro combinações.
         rng = random.Random(5)
         n = 3000
         arestas = grafo_aleatorio(rng, n, 12000, pesos=(0, 1, 2, 3))
@@ -189,8 +177,6 @@ class MotorCTest(unittest.TestCase):
                 self.assertTrue(all(np.array_equal(a, b) for a, b in zip(referencia, resultado)))
 
     def test_contagem_de_operacoes_igual_ao_python(self):
-        # As quatro configurações fazem as mesmas operações na fila; o C conta
-        # sob demanda e deve concordar com uma fila Python instrumentada.
         class Contadora:
             def __init__(self, classe):
                 self.classe, self.atualizacoes, self.extracoes = classe, 0, 0
@@ -228,7 +214,7 @@ class MotorCTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as pasta:
             texto = "50\n" + "".join(f"{u} {v} {rng.uniform(0, 10)!r}\n"
                                      for u, v, _ in grafo_aleatorio(rng, 50, 400))
-            texto += "\n   \n7\t8\t0.5\r\n"  # linhas vazias, tabulação e CRLF
+            texto += "\n   \n7\t8\t0.5\r\n"
             simples = Path(pasta) / "g.txt"
             simples.write_text(texto, encoding="utf-8")
             compactado = Path(pasta) / "g.txt.gz"
@@ -239,7 +225,6 @@ class MotorCTest(unittest.TestCase):
                 lido = ler_grafo_csr(arquivo, leitor).obter_representacao()
                 for a, b in zip(lido, referencia):
                     self.assertTrue(np.array_equal(a, b))
-            # Os pesos lidos coincidem com float() do Python, bit a bit.
             lista = ler_grafo(simples, "lista")
             csr = ler_grafo_csr(simples, "c")
             for u in range(1, 51):
@@ -267,7 +252,6 @@ class MotorCTest(unittest.TestCase):
                             ler_grafo_csr(arquivo, leitor)
             with self.assertRaises(OSError):
                 ler_grafo_csr(Path(pasta) / "inexistente.txt", "c")
-            # Sem arestas: vértices isolados.
             arquivo.write_text("4\n", encoding="utf-8")
             for leitor in ("numpy", "c"):
                 grafo = ler_grafo_csr(arquivo, leitor)
@@ -287,8 +271,8 @@ class MotorCTest(unittest.TestCase):
             motor_c.dijkstra_c(ler_grafo("exemplo_p2.txt"), 1)
         distancias, pais, segundos, extracoes, atualizacoes = motor_c.executar_c(grafo, 1, "vetor")
         self.assertGreaterEqual(segundos, 0.0)
-        self.assertEqual(extracoes, 5)  # o vértice 6 é isolado
-        self.assertIsNone(atualizacoes)  # só é contada quando pedida
+        self.assertEqual(extracoes, 5)
+        self.assertIsNone(atualizacoes)
         self.assertEqual(reconstruir_caminho(pais, 1, 3), [1, 2, 5, 4, 3])
         self.assertEqual(reconstruir_caminho(pais, 1, 1), [1])
         with tempfile.TemporaryDirectory() as pasta:
