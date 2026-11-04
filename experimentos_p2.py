@@ -62,8 +62,8 @@ def sem_coleta_de_lixo():
 class GuardaDeTomada:
     """Faz as medições acontecerem só com o computador na tomada.
 
-    Na bateria, o processador reduz a frequência: o mesmo Dijkstra em Python
-    ficou até 40% mais lento. Antes de cada medição, a guarda espera a
+    Na bateria, o processador reduz a frequência: o mesmo Dijkstra ficou de
+    11% (C com heap) a 56% (Python com heap) mais lento. Antes de cada medição, a guarda espera a
     tomada; durante a medição, uma thread confere a tomada a cada segundo, e
     a medição que pegar algum momento na bateria é descartada e repetida.
     """
@@ -388,6 +388,17 @@ def dispersao(tempos):
     return desvio, quantil * desvio / sqrt(len(tempos))
 
 
+def energia(resultado):
+    """Como a energia ficou durante a medição (ver GuardaDeTomada).
+
+    Resultados medidos antes da guarda trazem uma observação escrita à parte.
+    """
+    if resultado.get("so_na_tomada"):
+        return (f"Medido só na tomada; {resultado['medicoes_repetidas']} execuções repetidas "
+                "por pegarem bateria.")
+    return resultado.get("observacao", "Medido sem a guarda de tomada.")
+
+
 def markdown_grafo(resultado):
     leitura = f", leitor {resultado['leitor']}" if resultado["leitor"] else ""
     linhas = [f"### {resultado['grafo']}", "",
@@ -400,7 +411,7 @@ def markdown_grafo(resultado):
                       f"{formatar_distancia(item['distancia'])} | {rota} |")
     linhas += ["", f"Semente {resultado['semente']}; k = {resultado['k']}; cada configuração usa as "
                f"primeiras origens da mesma lista; em média {resultado['alcance_medio']:.0f} vértices "
-               "alcançados por origem.", "",
+               f"alcançados por origem. {energia(resultado)}", "",
                "| motor | fila | origens medidas | tempo total (s) | tempo médio (s) | desvio padrão (s) "
                "| IC 95% (s) | situação |",
                "|---|---|---|---|---|---|---|---|"]
