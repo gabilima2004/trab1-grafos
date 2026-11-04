@@ -1,0 +1,120 @@
+{
+ "grafo": "grafo_W_5.txt",
+ "vertices": 10000000,
+ "arestas": 39999995,
+ "contagens": [
+  {
+   "origem": 5626341,
+   "extracoes": 10000000,
+   "atualizacoes": 18400244,
+   "arcos_examinados": 79999990
+  },
+  {
+   "origem": 460468,
+   "extracoes": 10000000,
+   "atualizacoes": 18398398,
+   "arcos_examinados": 79999990
+  },
+  {
+   "origem": 8323219,
+   "extracoes": 10000000,
+   "atualizacoes": 18401363,
+   "arcos_examinados": 79999990
+  },
+  {
+   "origem": 8895304,
+   "extracoes": 10000000,
+   "atualizacoes": 18398640,
+   "arcos_examinados": 79999990
+  },
+  {
+   "origem": 8147586,
+   "extracoes": 10000000,
+   "atualizacoes": 18396392,
+   "arcos_examinados": 79999990
+  }
+ ],
+ "medidas": [
+  {
+   "motor": "c",
+   "fila": "heap",
+   "origem": 5626341,
+   "prazo": 0.0,
+   "completa": true,
+   "extracoes": 10000000,
+   "parede": 11.812851241003955,
+   "cpu_usuario": 11.726148,
+   "cpu_sistema": 0.06590200000000002,
+   "pico_mb": 185.2890625,
+   "residente_antes_mb": 1027.6484375,
+   "trocas_voluntarias": 0,
+   "trocas_involuntarias": 219,
+   "faltas_menores": 21748,
+   "faltas_maiores": 0
+  },
+  {
+   "motor": "python",
+   "fila": "heap",
+   "origem": 5626341,
+   "prazo": 0.0,
+   "completa": true,
+   "extracoes": 10000000,
+   "parede": 262.59159103500133,
+   "cpu_usuario": 261.78029100000003,
+   "cpu_sistema": 0.5477339999999999,
+   "pico_mb": 1046.96484375,
+   "residente_antes_mb": 1027.6328125,
+   "trocas_voluntarias": 0,
+   "trocas_involuntarias": 4589,
+   "faltas_menores": 268008,
+   "faltas_maiores": 0
+  },
+  {
+   "motor": "c",
+   "fila": "vetor",
+   "origem": 5626341,
+   "prazo": 20.0,
+   "completa": false,
+   "extracoes": 5624,
+   "parede": 20.008712254988495,
+   "cpu_usuario": 19.905113999999998,
+   "cpu_sistema": 0.07688100000000003,
+   "pico_mb": 199.24609375,
+   "residente_antes_mb": 1027.734375,
+   "trocas_voluntarias": 0,
+   "trocas_involuntarias": 363,
+   "faltas_menores": 25307,
+   "faltas_maiores": 0
+  },
+  {
+   "motor": "python",
+   "fila": "vetor",
+   "origem": 5626341,
+   "prazo": 20.0,
+   "completa": false,
+   "extracoes": 95,
+   "parede": 20.269078005992924,
+   "cpu_usuario": 20.150417,
+   "cpu_sistema": 0.09003399999999995,
+   "pico_mb": 171.71484375,
+   "residente_antes_mb": 1027.8125,
+   "trocas_voluntarias": 0,
+   "trocas_involuntarias": 365,
+   "faltas_menores": 43952,
+   "faltas_maiores": 0
+  }
+ ],
+ "ambiente": {
+  "data": "2026-11-04T00:20:15",
+  "python": "3.14.4",
+  "sistema": "Linux-7.0.0-42-generic-x86_64-with-glibc2.43",
+  "processador": "Intel(R) Core(TM) Ultra 5 238V",
+  "nucleos_permitidos": [
+   0
+  ],
+  "perfil_de_energia": "balanced",
+  "tomada": "0",
+  "numpy": "2.5.4",
+  "motor_c": "cc 15.2.0; -O2 -march=native -std=gnu11 -Wall -Wextra -fPIC -ffp-contract=off -fopenmp-simd"
+ }
+}

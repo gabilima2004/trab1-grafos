@@ -4,6 +4,8 @@ __pycache__/
 
 # Árvores de busca geradas pelo main.py
 arvore_*.txt
+caminhos_heap_*.txt
+caminhos_vetor_*.txt
 
 # Grafos dos estudos de caso: grandes demais para o repositório
 # (grafo_6.txt.gz tem 350 MB e o limite do GitHub é 100 MB).
@@ -13,3 +15,32 @@ grafo_3.txt.gz
 grafo_4.txt.gz
 grafo_5.txt.gz
 grafo_6.txt.gz
+
+# Parte 2: dados oficiais e enunciado (baixe no site da disciplina).
+# Os grafos W ocupam de 100 MB a 1,5 GB cada.
+grafo_W_*.txt
+grafo_W_*.txt.gz
+rede_colaboracao*.txt
+rede_colaboracao*.txt.gz
+trabalho-P2.pdf
+
+# Ambiente virtual (numpy) e motor C compilado (make)
+.venv/
+*.so
+*.o
+
+# Árvores de caminhos mínimos gravadas pelo menu e pelos experimentos
+caminhos_*.txt
+
+# Fontes do relatório da parte 1 e arquivos auxiliares do LaTeX
+*.zip
+*.aux
+*.log
+*.out
+*.toc
+*.nav
+*.snm
+*.vrb
+*.fls
+*.fdb_latexmk
+*.synctex.gz
