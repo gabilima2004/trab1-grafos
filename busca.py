@@ -24,6 +24,8 @@ def BFS(grafo, v_inicial):
     return pai, nivel
 
 def componentes(grafo):
+    if getattr(grafo, "direcionado", False):
+        raise ValueError("Componentes conexas requerem um grafo nao direcionado.")
     
     n_explorado = set(range(1, grafo.numero_vertices + 1))
     

@@ -3,7 +3,7 @@
 from math import inf
 from prioridades import FilaVetor, HeapIndexado
 
-MENSAGEM_PESO_NEGATIVO = "A biblioteca ainda não implementa caminhos mínimos com pesos negativos."
+MENSAGEM_PESO_NEGATIVO = "Dijkstra rejeita arestas com pesos negativos."
 FILAS = {"vetor": FilaVetor, "heap": HeapIndexado}
 
 

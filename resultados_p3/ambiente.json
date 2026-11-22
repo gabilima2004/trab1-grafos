@@ -1,0 +1,19 @@
+{
+  "python": "3.11.9",
+  "numpy": "2.4.6",
+  "sistema": "Windows-10-10.0.19045-SP0",
+  "rodadas": 10,
+  "limite_todos_pares": 2000,
+  "grafos": [
+    "grafo_W_1.txt.gz",
+    "grafo_W_2.txt.gz",
+    "grafo_W_3.txt.gz",
+    "grafo_W_4.txt.gz",
+    "grafo_W_5.txt.gz"
+  ],
+  "direcionado": true,
+  "ram_bytes": 4008484864,
+  "sessao_adicional": [
+    "grafo_W_1.txt.gz"
+  ]
+}

@@ -1,3 +1,4 @@
+import argparse
 from time import perf_counter
 
 from entrada_saida import ler_cabecalho, ler_grafo
@@ -98,13 +99,18 @@ def mostrar_distancia(grafo):
     d = distancia(grafo, u, v)
 
     if d == INFINITO:
-        print(f"Não existe caminho entre {u} e {v}"
-              " (estão em componentes diferentes).")
+        if grafo.direcionado:
+            print(f"Não existe caminho de {u} a {v}.")
+        else:
+            print(f"Não existe caminho entre {u} e {v}"
+                  " (estão em componentes diferentes).")
     else:
         print(f"Distância entre {u} e {v}: {d}")
 
 
 def mostrar_diametro(grafo):
+    if grafo.direcionado:
+        raise ValueError("O menu de diametro requer um grafo nao direcionado.")
     if grafo.ponderado:
         print("O diâmetro da parte 1 usa número de arestas e se aplica a grafos sem pesos.")
         return
@@ -123,6 +129,8 @@ def mostrar_diametro(grafo):
 
 
 def mostrar_componentes(grafo):
+    if grafo.direcionado:
+        raise ValueError("O menu de componentes requer um grafo nao direcionado.")
     num_componentes, tamanhos, componentes_grafo = componentes(grafo)
 
     print("\n--- Componentes conexas ---")
@@ -181,12 +189,12 @@ def executar_dijkstra(grafo):
         print("Caminho:", reconstruir_caminho(pais, origem, destino))
 
 
-def main():
+def main(direcionado=False):
     nome_arquivo = input("Digite o nome do arquivo do grafo: ").strip()
 
     representacao = representacao_viavel(nome_arquivo, escolher_representacao())
 
-    grafo = ler_grafo(nome_arquivo, representacao)
+    grafo = ler_grafo(nome_arquivo, representacao, direcionado=direcionado)
 
     while True:
         print("\n--- Menu ---")
@@ -225,4 +233,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--direcionado", action="store_true",
+                        help="Orienta cada aresta do primeiro para o segundo vertice.")
+    main(direcionado=parser.parse_args().direcionado)

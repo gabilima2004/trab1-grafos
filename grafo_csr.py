@@ -11,7 +11,7 @@ class GrafoCSR:
     representacao = "csr"
     ponderado = True
 
-    def __init__(self, numero_vertices, inicio, adjacentes, pesos):
+    def __init__(self, numero_vertices, inicio, adjacentes, pesos, direcionado=False):
         n = int(numero_vertices)
         if not 0 <= n <= np.iinfo(np.int32).max - 2:
             raise ValueError("Número de vértices inválido.")
@@ -19,7 +19,7 @@ class GrafoCSR:
         adjacentes = np.ascontiguousarray(adjacentes, dtype=np.int32)
         pesos = np.ascontiguousarray(pesos, dtype=np.float64)
         if (inicio.shape != (n + 2,) or adjacentes.shape != pesos.shape
-                or adjacentes.ndim != 1 or adjacentes.size % 2
+                or adjacentes.ndim != 1 or (not direcionado and adjacentes.size % 2)
                 or inicio[0] != 0 or inicio[1] != 0 or inicio[-1] != adjacentes.size
                 or np.any(np.diff(inicio) < 0)):
             raise ValueError("Vetores CSR inconsistentes.")
@@ -29,7 +29,8 @@ class GrafoCSR:
             raise ValueError("O peso deve ser um número real finito.")
 
         self.numero_vertices = n
-        self.numero_arestas = adjacentes.size // 2
+        self.direcionado = direcionado
+        self.numero_arestas = adjacentes.size if direcionado else adjacentes.size // 2
         self.inicio = inicio
         self.adjacentes = adjacentes
         self.pesos = pesos
@@ -63,13 +64,20 @@ class GrafoCSR:
         return self.inicio.nbytes + self.adjacentes.nbytes + self.pesos.nbytes
 
 
-def montar_csr(numero_vertices, origens, destinos, pesos):
+def montar_csr(numero_vertices, origens, destinos, pesos, direcionado=False):
     origens = np.asarray(origens, dtype=np.int32)
     destinos = np.asarray(destinos, dtype=np.int32)
     pesos = np.asarray(pesos, dtype=np.float64)
     m = origens.size
     if destinos.size != m or pesos.size != m:
         raise ValueError("Vetores de arestas com tamanhos diferentes.")
+    if direcionado:
+        if m and (origens.min() < 1 or origens.max() > numero_vertices):
+            raise ValueError(f"Vértice fora do intervalo 1..{numero_vertices}.")
+        inicio = np.zeros(numero_vertices + 2, np.int64)
+        np.cumsum(np.bincount(origens, minlength=numero_vertices + 1), out=inicio[1:])
+        ordem = np.argsort(origens, kind="stable")
+        return GrafoCSR(numero_vertices, inicio, destinos[ordem], pesos[ordem], direcionado=True)
     fontes = np.empty(2 * m, np.int32)
     fontes[0::2] = origens
     fontes[1::2] = destinos
@@ -90,7 +98,8 @@ def montar_csr(numero_vertices, origens, destinos, pesos):
 
 def _abrir(nome_arquivo):
     nome_arquivo = str(nome_arquivo)
-    return gzip.open(nome_arquivo, "rb") if nome_arquivo.endswith(".gz") else open(nome_arquivo, "rb")
+    abrir = gzip.open if nome_arquivo.endswith(".gz") else open
+    return abrir(nome_arquivo, "rt", encoding="ascii")
 
 
 def _localizar_erro(nome_arquivo):
@@ -114,7 +123,7 @@ def _localizar_erro(nome_arquivo):
                 raise ValueError(f"Linha {numero_linha}: O peso deve ser um número real finito.")
 
 
-def _ler_numpy(nome_arquivo):
+def _ler_numpy(nome_arquivo, direcionado=False, transposto=False):
     with _abrir(nome_arquivo) as arquivo:
         try:
             numero_vertices = int(arquivo.readline())
@@ -130,16 +139,22 @@ def _ler_numpy(nome_arquivo):
     try:
         if not np.isfinite(arestas["peso"]).all():
             raise ValueError("O peso deve ser um número real finito.")
-        return montar_csr(numero_vertices, arestas["u"], arestas["v"], arestas["peso"])
+        origem, destino = ("v", "u") if transposto else ("u", "v")
+        return montar_csr(numero_vertices, arestas[origem], arestas[destino],
+                          arestas["peso"], direcionado=direcionado)
     except ValueError:
         _localizar_erro(nome_arquivo)
         raise
 
 
-def ler_grafo_csr(nome_arquivo, leitor="numpy"):
+def ler_grafo_csr(nome_arquivo, leitor="numpy", direcionado=False, transposto=False):
+    if transposto and not direcionado:
+        raise ValueError("A transposição na leitura requer um grafo direcionado.")
     if leitor == "numpy":
-        return _ler_numpy(nome_arquivo)
+        return _ler_numpy(nome_arquivo, direcionado, transposto)
     if leitor == "c":
+        if direcionado:
+            raise ValueError("O leitor C aceita apenas grafos não direcionados.")
         from motor_c import ler_csr
         return ler_csr(nome_arquivo)
     raise ValueError("Leitor deve ser 'numpy' ou 'c'.")

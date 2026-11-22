@@ -1,0 +1,11 @@
+grafo,algoritmo,vertices,arcos,matrizes_bytes,cenario_minimo_10_s,cenario_maximo_10_s,tipo,execucao_oficial
+grafo_W_1.txt.gz,floyd_warshall,25000,549953,7500600012,1388981.3899989508,1444580.9364315236,extrapolado,nao_executado
+grafo_W_1.txt.gz,bellman_ford_todos_pares,25000,549953,5000400008,19961.520659184258,51198.3265920282,extrapolado,nao_executado
+grafo_W_2.txt.gz,floyd_warshall,25000,824964,7500600012,1388981.3899989508,1444580.9364315236,extrapolado,nao_executado
+grafo_W_2.txt.gz,bellman_ford_todos_pares,25000,824964,5000400008,29509.49720335903,75687.46395525661,extrapolado,nao_executado
+grafo_W_3.txt.gz,floyd_warshall,100000,6099941,120002400012,88894808.95993285,92453179.93161751,extrapolado,nao_executado
+grafo_W_3.txt.gz,bellman_ford_todos_pares,100000,6099941,80001600008,861011.2503611494,2208365.5823645126,extrapolado,nao_executado
+grafo_W_4.txt.gz,floyd_warshall,1000000,30999978,12000024000012,88894808959.93285,92453179931.61751,extrapolado,nao_executado
+grafo_W_4.txt.gz,bellman_ford_todos_pares,1000000,30999978,8000016000008,44439682.68296307,113981165.38789898,extrapolado,nao_executado
+grafo_W_5.txt.gz,floyd_warshall,10000000,39999995,1200000240000012,88894808959932.84,92453179931617.5,extrapolado,nao_executado
+grafo_W_5.txt.gz,bellman_ford_todos_pares,10000000,39999995,800000160000008,694370449.863978,1780956755.4981203,extrapolado,nao_executado

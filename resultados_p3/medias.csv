@@ -1,0 +1,16 @@
+grafo,vertices,arestas,algoritmo,rodadas,media_s,estado
+grafo_W_1.txt.gz,25000,549953,bellman_ford,10,0.35414406000004417,concluido
+grafo_W_1.txt.gz,25000,549953,floyd_warshall,0,,omitido: 25000 vertices excedem o limite 2000
+grafo_W_1.txt.gz,25000,549953,bellman_ford_todos_pares,0,,omitido: 25000 vertices excedem o limite 2000
+grafo_W_2.txt.gz,25000,824964,bellman_ford,10,1.2271883999999773,concluido
+grafo_W_2.txt.gz,25000,824964,floyd_warshall,0,,omitido: 25000 vertices excedem o limite 2000
+grafo_W_2.txt.gz,25000,824964,bellman_ford_todos_pares,0,,omitido: 25000 vertices excedem o limite 2000
+grafo_W_3.txt.gz,100000,6099941,bellman_ford,10,2.9921489199999085,concluido
+grafo_W_3.txt.gz,100000,6099941,floyd_warshall,0,,omitido: 100000 vertices excedem o limite 2000
+grafo_W_3.txt.gz,100000,6099941,bellman_ford_todos_pares,0,,omitido: 100000 vertices excedem o limite 2000
+grafo_W_4.txt.gz,1000000,30999978,bellman_ford,10,13.72145108000002,concluido
+grafo_W_4.txt.gz,1000000,30999978,floyd_warshall,0,,omitido: 1000000 vertices excedem o limite 2000
+grafo_W_4.txt.gz,1000000,30999978,bellman_ford_todos_pares,0,,omitido: 1000000 vertices excedem o limite 2000
+grafo_W_5.txt.gz,10000000,39999995,bellman_ford,10,14.821187129999908,concluido
+grafo_W_5.txt.gz,10000000,39999995,floyd_warshall,0,,omitido: 10000000 vertices excedem o limite 2000
+grafo_W_5.txt.gz,10000000,39999995,bellman_ford_todos_pares,0,,omitido: 10000000 vertices excedem o limite 2000

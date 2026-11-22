@@ -44,3 +44,12 @@ caminhos_*.txt
 *.fls
 *.fdb_latexmk
 *.synctex.gz
+
+# Artefatos locais da Parte 3
+/trabalho-P3.pdf
+*.dll
+*.exe
+/materiais_p3/*.xdv
+/materiais_p3/*.synctex
+/medicoes/*.json.tmp
+/medicoes/*.json.lock

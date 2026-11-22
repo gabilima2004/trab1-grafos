@@ -8,7 +8,7 @@ c/libgrafos.so: c/grafos.c c/grafos.h
 
 .PHONY: testes limpar
 testes: c/libgrafos.so
-	$(PYTHON) -m unittest -v test_parte2 test_motor_c
+	$(PYTHON) -m unittest -v test_parte2 test_motor_c test_parte3 test_benchmark_p3
 
 limpar:
 	rm -f c/libgrafos.so

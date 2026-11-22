@@ -2,12 +2,13 @@ from math import isfinite
 
 
 class Grafo:
-    def __init__(self, numero_vertices, representacao="lista", ponderado=False):
+    def __init__(self, numero_vertices, representacao="lista", ponderado=False, direcionado=False):
         if numero_vertices < 0 or representacao not in ("lista", "matriz"):
             raise ValueError("Número de vértices ou representação inválidos.")
         self.numero_vertices = numero_vertices
         self.representacao = representacao
         self.ponderado = ponderado
+        self.direcionado = direcionado
         self.tem_peso_negativo = False
 
         self.lista_adjacencia = None
@@ -39,23 +40,28 @@ class Grafo:
         self.tem_peso_negativo |= peso < 0
         if self.representacao == "lista":
             self.lista_adjacencia[u].append((v, peso) if self.ponderado else v)
-            self.lista_adjacencia[v].append((u, peso) if self.ponderado else u)
+            if not self.direcionado:
+                self.lista_adjacencia[v].append((u, peso) if self.ponderado else u)
         else:
             if self.ponderado:
                 anterior = self.matriz_adjacencia[u][v]
                 if anterior is None or peso < anterior:
                     self.matriz_adjacencia[u][v] = peso
-                    self.matriz_adjacencia[v][u] = peso
+                    if not self.direcionado:
+                        self.matriz_adjacencia[v][u] = peso
                 if anterior is not None:
                     return
                 self.graus[u] += 1
-                self.graus[v] += 1
+                if not self.direcionado:
+                    self.graus[v] += 1
                 return
             self.matriz_adjacencia[u][v] = 1
-            self.matriz_adjacencia[v][u] = 1
+            if not self.direcionado:
+                self.matriz_adjacencia[v][u] = 1
 
         self.graus[u] += 1
-        self.graus[v] += 1
+        if not self.direcionado:
+            self.graus[v] += 1
 
     def vizinhos(self, u):
         if self.representacao == "lista":

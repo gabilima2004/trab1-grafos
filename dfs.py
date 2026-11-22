@@ -25,6 +25,8 @@ def DFS(grafo, v_inicial):
 
 
 def componentes_dfs(grafo):
+    if getattr(grafo, "direcionado", False):
+        raise ValueError("Componentes conexas requerem um grafo nao direcionado.")
     visitado = [False] * (grafo.numero_vertices + 1)
     componentes = []
 

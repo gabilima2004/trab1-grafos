@@ -1,0 +1,16 @@
+grafo,origem,destino,distancia
+grafo_W_1.txt.gz,10,100,-inf
+grafo_W_1.txt.gz,20,100,-inf
+grafo_W_1.txt.gz,30,100,-inf
+grafo_W_2.txt.gz,10,100,10.469999999999999
+grafo_W_2.txt.gz,20,100,8.479999999999999
+grafo_W_2.txt.gz,30,100,8.71
+grafo_W_3.txt.gz,10,100,4.63
+grafo_W_3.txt.gz,20,100,5.42
+grafo_W_3.txt.gz,30,100,4.67
+grafo_W_4.txt.gz,10,100,9.040000000000001
+grafo_W_4.txt.gz,20,100,8.83
+grafo_W_4.txt.gz,30,100,9.229999999999999
+grafo_W_5.txt.gz,10,100,37.849999999999994
+grafo_W_5.txt.gz,20,100,42.63
+grafo_W_5.txt.gz,30,100,37.86000000000001

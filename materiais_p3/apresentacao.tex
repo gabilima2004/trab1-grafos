@@ -1,0 +1,159 @@
+\documentclass[10pt,aspectratio=169]{beamer}
+\usetheme[progressbar=frametitle]{metropolis}
+\usepackage[brazil]{babel}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{booktabs,amsmath,xcolor,tikz}
+\usetikzlibrary{arrows.meta,positioning}
+\definecolor{cforte}{HTML}{1F5A96}
+\definecolor{pyforte}{HTML}{C0571B}
+\setbeamercolor{frametitle}{bg=cforte,fg=white}
+\setbeamercolor{progress bar}{fg=pyforte}
+\setbeamercolor{alerted text}{fg=pyforte}
+\IfFileExists{materiais_p3/dados.tex}{\input{materiais_p3/dados}}{\input{dados}}
+\title{Teoria dos Grafos --- COS242}
+\subtitle{Parte 3 --- Caminhos mínimos em grafos direcionados}
+\author{Gabriel Pires \and Gabriella Lima}
+\institute{Universidade Federal do Rio de Janeiro}
+\date{2026/2}
+\begin{document}
+\begin{frame}[plain,noframenumbering] % 0:20
+\vfill
+{\LARGE\bfseries\color{cforte}\inserttitle\par}
+\medskip
+{\large\insertsubtitle\par}
+\medskip
+{\color{pyforte}\rule{\textwidth}{.7pt}\par}
+\medskip
+Gabriel Pires \quad Gabriella Lima\par
+\insertinstitute\par
+\insertdate
+\vfill
+\end{frame}
+
+\begin{frame}{Objetivo e representação} % 0:50
+\begin{columns}[T,onlytextwidth]
+\column{.56\textwidth}
+\begin{itemize}
+\item Ler arcos ponderados e preservar o modo não direcionado.
+\item Reutilizar BFS, DFS e Dijkstra pela interface de vizinhança.
+\item Obter caminhos até um destino e entre todos os pares.
+\end{itemize}
+\column{.40\textwidth}
+\centering
+\begin{tikzpicture}[node distance=1.7cm,vert/.style={circle,draw=cforte,thick,minimum size=8mm},>=Stealth]
+\node[vert] (u) {\(u\)};
+\node[vert,right=of u] (v) {\(v\)};
+\draw[->,thick,cforte] (u) -- node[above] {\(w\)} (v);
+\end{tikzpicture}\par
+\medskip
+\small \(u,v,w\) entra na lista de saídas de \(u\).\par
+CSR usa deslocamentos e vetores contíguos.
+\end{columns}
+\end{frame}
+
+\begin{frame}{Bellman--Ford até um destino} % 1:15
+\begin{columns}[T,onlytextwidth]
+\column{.56\textwidth}
+\textbf{Aula 14}
+\begin{enumerate}
+\item Um vetor de distâncias.
+\item Só expande a fronteira atualizada.
+\item Para quando a fronteira esvazia.
+\end{enumerate}
+\column{.41\textwidth}
+\centering
+\begin{tikzpicture}[>=Stealth,vert/.style={circle,draw=cforte,thick,minimum size=7mm}]
+\node[vert] at (0,0) (v) {\(v\)};
+\node[vert] at (3,0) (t) {\(t\)};
+\draw[->,thick,cforte] (v) to[bend left=28] node[above]{original} (t);
+\draw[->,thick,pyforte] (t) to[bend left=28] node[below]{transposto} (v);
+\end{tikzpicture}
+\end{columns}
+\medskip
+\[
+  d(v)\gets\min\{d(v),\,w(v,u)+d_{\mathrm{anterior}}(u)\}.
+\]
+\small Uma melhora no passo \(V\) sinaliza ciclo negativo que chega ao destino.
+A consulta global usa uma raiz virtual para cobrir todo o grafo.
+\end{frame}
+
+\begin{frame}{Floyd--Warshall usa caminhos intermediários} % 1:00
+\begin{center}
+\begin{tikzpicture}[>=Stealth,vert/.style={circle,draw=cforte,thick,minimum size=7mm}]
+\node[vert] at (0,0) (u) {\(u\)};
+\node[vert] at (2.5,1) (k) {\(k\)};
+\node[vert] at (5,0) (v) {\(v\)};
+\draw[->,thick,pyforte] (u) -- node[above left]{\(D_{uk}\)} (k);
+\draw[->,thick,pyforte] (k) -- node[above right]{\(D_{kv}\)} (v);
+\draw[->,thick,cforte] (u) -- node[below]{\(D_{uv}\)} (v);
+\end{tikzpicture}
+\end{center}
+\[
+  D_{uv}\gets\min(D_{uv},D_{uk}+D_{kv}).
+\]
+\small Matrizes reutilizadas a cada fase. Predecessores reconstroem rotas.
+Diagonal negativa indica ciclo. A marcação de \(-\infty\) depende do alcance.
+\end{frame}
+
+\begin{frame}{Consulta oficial até o vértice 100} % 0:40
+\centering{\large\TabelaDestino}
+\par\medskip
+\small Bellman--Ford no grafo transposto. Cada tempo é a média de dez rodadas.
+Os 12 valores finitos foram conferidos por Dijkstra em C.
+\end{frame}
+
+\begin{frame}{Cinco matrizes seletivas de distâncias} % 1:00
+\begin{columns}[T,onlytextwidth]
+\column{.48\textwidth}\centering \textbf{W1}\par\small\MatrizUm
+\column{.48\textwidth}\centering \textbf{W2}\par\small\MatrizDois
+\end{columns}
+\medskip
+\small
+\begin{itemize}
+\item Bellman--Ford por destino gerou as cinco matrizes oficiais. Floyd--Warshall em escala oficial segue pendente.
+\item Em W1, todos os pares podem usar o ciclo \(9931\to12129\to9931\) de peso \(-3{,}88\).
+\item Dijkstra em C conferiu as 100 células de W2 a W5.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Calibração medida em grafos sintéticos} % 1:05
+\centering{\large\TabelaCalibracao}
+\par\medskip
+\small
+\begin{itemize}
+\item Dois graus de saída, 4 e 16. Dez rodadas por tamanho, densidade e algoritmo.
+\item Faixas das médias em segundos por rodada. Pesos positivos.
+\item A posição relativa mudou entre 160 e 320 vértices nesses casos.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Todos os pares nos grafos oficiais} % 1:00
+\centering\TabelaRecursos
+\par\medskip
+\begin{itemize}
+\item A máquina local tem 4 GB de RAM. As matrizes densas de W1 e W2 já excedem esse total.
+\item Projeção para dez rodadas de Floyd em W1 ou W2: ordem de semanas na máquina local.
+\item Bellman--Ford em fluxo conserva uma coluna por vez.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Conclusões} % 0:50
+\begin{columns}[T,onlytextwidth]
+\column{.49\textwidth}
+\textbf{Contribuições}
+\begin{itemize}
+\item Grafos direcionados ponderados com reutilização de BFS, DFS e Dijkstra.
+\item Bellman--Ford com fronteira ativa e Floyd--Warshall com matrizes em lugar.
+\end{itemize}
+\column{.47\textwidth}
+\textbf{Validação}
+\begin{itemize}
+\item As 125 distâncias seletivas foram conferidas por Dijkstra em C ou por um certificado de ciclo negativo.
+\item A detecção distingue existência global e pares afetados.
+\end{itemize}
+\end{columns}
+\medskip
+\alert{Limite experimental.} A comparação de desempenho nos grafos oficiais aguarda dez rodadas de todos os pares por método.
+\end{frame}
+\end{document}

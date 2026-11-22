@@ -1,0 +1,114 @@
+\documentclass[a4paper,11pt]{article}
+\usepackage[brazil]{babel}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage[margin=2.3cm]{geometry}
+\usepackage{amsmath,booktabs,tabularx,xcolor,hyperref,indentfirst}
+\definecolor{azul}{HTML}{1F5A96}
+\hypersetup{colorlinks,linkcolor=azul,urlcolor=azul}
+\IfFileExists{materiais_p3/dados.tex}{\input{materiais_p3/dados}}{\input{dados}}
+\title{\textcolor{azul}{COS242 --- Teoria dos Grafos}\\Parte 3 --- Caminhos mínimos em grafos direcionados}
+\author{Gabriel Pires \and Gabriella Lima}
+\date{Universidade Federal do Rio de Janeiro -- 2026/2}
+
+\begin{document}
+\maketitle
+
+\section{Objetivo e decisões de projeto}
+
+O trabalho estende a biblioteca das partes anteriores para representar grafos direcionados ponderados e calcular caminhos mínimos com Bellman--Ford e Floyd--Warshall. O estudo investiga distâncias até um destino fixo e entre cinco vértices de interesse. O protocolo de desempenho prevê comparar, em dez rodadas por método, Floyd--Warshall e a aplicação de Bellman--Ford a todos os destinos.
+
+O leitor preserva o formato dos arquivos. O cabeçalho informa o número de vértices e, no modo direcionado, uma linha \(u,v,w\) insere o arco \(u\to v\) com peso \(w\) apenas nas saídas de \(u\). No modo não direcionado, também se registra a incidência inversa. A biblioteca oferece lista, matriz e CSR. No CSR, os deslocamentos delimitam as saídas de cada vértice em dois vetores contíguos, de vizinhos e pesos. O espaço do grafo é \(O(V+E)\), com \(E\) representando o número de arcos armazenados.
+
+BFS e DFS passaram a respeitar a orientação por meio da interface de vizinhança já usada nas versões anteriores. A BFS calcula níveis pelo número de arcos, e a DFS explora a alcançabilidade em profundidade. Dijkstra usa a mesma interface com pesos e mantém as filas por vetor e heap. Como a finalização de um vértice depende da hipótese de custos não negativos, a biblioteca rejeita essa operação se detectar peso negativo no grafo.
+
+\section{Bellman--Ford até um destino}
+
+Para calcular \(d(v,t)\), o algoritmo fixa \(d(t)=0\) e percorre o grafo transposto a partir de \(t\). Cada arco original \(v\to u\) oferece o candidato \(w(v,u)+d(u,t)\). Quando esse candidato melhora \(d(v,t)\), \(u\) passa a ser o sucessor de \(v\) na rota até \(t\). Seguir os sucessores reconstrói os caminhos finitos e fornece a árvore orientada para o destino.
+
+As três melhorias da Aula 14 aparecem no laço de relaxamento. Um vetor substitui a matriz de distâncias por rodada. Cada fronteira contém apenas os vértices melhorados no passo anterior. A execução para quando a fronteira fica vazia. Uma cópia dos valores da fronteira no início da rodada impede que melhorias do próprio passo se propaguem como se já pertencessem ao passo anterior. O CSR agrupa os relaxamentos em lotes.
+
+Após \(V-1\) passos, uma nova melhora sinaliza um ciclo negativo capaz de chegar a \(t\). O código também inspeciona os sucessores a cada 16 rodadas em grafos com pesos negativos. Um ciclo encontrado só é aceito após conferir que a soma dos pesos é negativa. Os vértices que podem passar por esse ciclo e seguir até \(t\) recebem \(-\infty\). A consulta global é separada e equivale a ligar uma raiz virtual de custo zero a todos os vértices. Assim, alcança também ciclos fora da região de uma consulta específica.
+
+\clearpage
+\section{Floyd--Warshall e metodologia experimental}
+
+Floyd--Warshall usa \(D^{(k)}_{uv}\), o menor custo de \(u\) a \(v\) quando os intermediários são restritos aos primeiros \(k\) vértices. A inicialização usa zero na diagonal, o menor peso entre arcos paralelos e \(+\infty\) para pares sem arco. Na fase \(k\), compara-se o caminho conhecido com a concatenação de um trecho até \(k\) e outro a partir dele.
+\[
+D^{(k)}_{uv} =
+\min\bigl(D^{(k-1)}_{uv},\,D^{(k-1)}_{uk}+D^{(k-1)}_{kv}\bigr).
+\]
+A atualização ocorre em lugar, usando vetores temporários por fase. Uma matriz adicional de predecessores permite reconstruir os caminhos e as árvores por origem. A diagonal negativa identifica vértices que podem voltar a si mesmos com custo negativo. Para cada um deles, os pares que podem alcançá-lo e depois seguir ao destino recebem \(-\infty\). A implementação usa \(O(V^2)\) de memória e \(O(V^3)\) de tempo no pior caso.
+
+\paragraph{Protocolo.}
+Os arquivos oficiais W1 a W5 foram carregados como grafos direcionados ponderados. Nas medições até o vértice 100, o CSR transposto foi preparado antes do cronômetro. Cada rodada mede uma nova chamada de Bellman--Ford com \texttt{perf\_counter()}, incluindo a construção do resultado em memória. Leitura, montagem da entrada, extração das células e escrita ficaram fora da janela medida. Cada média oficial nessa consulta reúne dez rodadas.
+
+As matrizes da página seguinte foram obtidas com cinco consultas de Bellman--Ford por destino, extraindo apenas as células pedidas. As consultas usam \texttt{float64}. Pesos de magnitudes muito diferentes podem fazer uma melhora desaparecer por arredondamento. A conferência dos resultados oficiais usa um certificado de ciclo em W1 e Dijkstra em C em W2 a W5.
+
+\section{Distâncias até o vértice 100}
+
+\begin{center}
+\TabelaDestino
+\end{center}
+
+As colunas 10, 20 e 30 são as origens. A última coluna é o tempo médio em segundos de uma chamada de Bellman--Ford até 100. Em W1, as três origens podem passar pelo ciclo \(9931\to12129\to9931\) e seguir até 100. A soma dos pesos do ciclo é \(-3{,}88\), de modo que repetir suas arestas reduz o custo sem limite. Em W2 a W5, as 12 distâncias finitas foram reproduzidas com Dijkstra em C no CSR transposto.
+
+O tempo médio da consulta cresce de 0,354 s em W1 para 14,821 s em W5, sem acompanhar proporcionalmente o crescimento do número de vértices. O volume de arcos examinados depende do alcance e de quantas vezes os rótulos melhoram. Além disso, a medição de W1 foi feita em uma sessão separada. Essa série mede uma consulta por grafo e não determina o custo de resolvê-la para todos os destinos.
+
+\paragraph{Código-fonte.} O repositório público \url{https://github.com/gabilima2004/trab1-grafos} contém a base do projeto. A implementação da Parte 3 está somente na branch local \texttt{trabalho-p3}. O endereço da versão entregue deverá ser incluído quando ela for publicada.
+
+\clearpage
+\section{Matrizes de distâncias dos grafos oficiais}
+
+As tabelas desta seção foram calculadas por \textbf{Bellman--Ford por destino}: uma consulta para cada um dos cinco destinos em cada grafo. \textbf{Floyd--Warshall não foi executado nos grafos oficiais.} Portanto, as tabelas fornecem as distâncias pedidas, e o experimento prescrito com Floyd--Warshall continua pendente.
+
+As linhas são origens e as colunas são destinos. Em W1, cada origem pode passar pelo ciclo de peso \(-3{,}88\) e dele seguir a cada destino. Isso justifica as 25 entradas \(-\infty\), inclusive a diagonal. Em W2 a W5, Dijkstra em C reproduziu as 100 células. Nesses quatro grafos, as diagonais nulas correspondem ao caminho vazio.
+
+\begin{center}
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}cc@{}}
+\textbf{W1} & \textbf{W2}\\[3pt]
+\MatrizUm & \MatrizDois\\[10pt]
+\textbf{W3} & \textbf{W4}\\[3pt]
+\MatrizTres & \MatrizQuatro\\[10pt]
+\multicolumn{2}{c}{\textbf{W5}}\\[3pt]
+\multicolumn{2}{c}{\MatrizCinco}
+\end{tabular}
+\end{center}
+
+Os valores também mostram o efeito da orientação. Em W2, a distância de 10 a 50 é \(7{,}08\), e a rota de 50 a 10 custa \(4{,}48\). A conferência considera cada par ordenado separadamente. As matrizes respondem à consulta seletiva do enunciado, e a execução dessas consultas por Floyd--Warshall nos arquivos oficiais segue pendente.
+
+\clearpage
+\section{Desempenho, limites e comparação teórica}
+
+\paragraph{Medições nos grafos oficiais.}
+A tabela da Seção 4 contém as únicas médias oficiais disponíveis: dez rodadas de Bellman--Ford até 100 por grafo. Nenhuma rodada oficial de todos os pares foi concluída com qualquer um dos dois métodos.
+
+\paragraph{Medições em grafos sintéticos.}
+Na calibração, os grafos direcionados tinham pesos positivos e 4 ou 16 arcos por vértice. Foram dez rodadas por tamanho, densidade e algoritmo. A tabela resume as duas médias por tamanho, em segundos por rodada. Bellman--Ford calculou todos os destinos e reteve a matriz completa.
+
+\begin{center}
+\TabelaCalibracao
+\end{center}
+
+Floyd--Warshall teve médias menores em 80 e 160 vértices. Em 320 vértices, Bellman--Ford teve médias menores. A inversão observada nessa calibração não estabelece a ordem de desempenho nos grafos oficiais.
+
+\paragraph{Comparação teórica.}
+Floyd--Warshall tem tempo \(O(V^3)\) no pior caso e usa memória \(O(V^2)\). Com o transposto pronto, uma consulta Bellman--Ford faz até \(V\) rodadas. Cada rodada pode percorrer \(O(V+E)\) posições e arcos. Para \(V\) destinos, isso limita as varreduras e relaxamentos a \(O(V^2(V+E))\), à parte o custo de deduplicar empates nos lotes CSR com pesos negativos. O limite é cúbico se \(E=O(V)\) e de ordem \(V^4\) se \(E=\Theta(V^2)\). Na prática, fronteiras menores e parada antecipada reduzem o trabalho. O modo em fluxo dispensa guardar a matriz de Bellman--Ford, mas mantém uma consulta por destino.
+
+\paragraph{Projeções e orçamento de memória.}
+A tabela apresenta tamanhos calculados para as matrizes finais densas, em unidades decimais. A máquina local tem cerca de 4 GB de RAM.
+
+\begin{center}
+\TabelaRecursos
+\end{center}
+
+Extrapolar a calibração de 320 vértices pela escala cúbica sugere uma ordem de \textbf{semanas} para dez rodadas de Floyd--Warshall em W1 ou W2 na máquina local, caso as matrizes coubessem. Esse cenário pressupõe comportamento semelhante fora da escala medida e não captura a propagação dos efeitos dos ciclos negativos de W1. Portanto, serve para dimensionar o experimento. A comparação empírica requer dez rodadas completas de cada método no mesmo grafo e na mesma máquina, com registro da variante densa ou em fluxo de Bellman--Ford.
+
+\section{Conclusão}
+
+A biblioteca foi estendida para grafos direcionados ponderados, e as consultas seletivas nos cinco grafos foram calculadas e conferidas. W1 mostra por que a detecção de ciclo deve ser combinada com alcance, enquanto W2 a W5 permitem validar as distâncias com Dijkstra. A calibração fundamenta o planejamento, e a conclusão de desempenho nos grafos oficiais depende das rodadas de todos os pares.
+
+\end{document}

@@ -4,7 +4,7 @@ def num_arestas(grafo):
     for i in range(1, grafo.numero_vertices + 1):
         total += grafo.grau(i)
 
-    return total // 2
+    return total if grafo.direcionado else total // 2
 
 
 def grau_min(grafo):
