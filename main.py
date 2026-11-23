@@ -189,6 +189,90 @@ def executar_dijkstra(grafo):
         print("Caminho:", reconstruir_caminho(pais, origem, destino))
 
 
+def motor_c_disponivel(grafo):
+    if grafo.representacao != "csr":
+        return False
+    from motor_c import disponivel
+    return disponivel()
+
+
+def salvar_bellman_ford(nome_arquivo, resultado):
+    with open(nome_arquivo, "w", encoding="utf-8") as arquivo:
+        arquivo.write(f"# Bellman-Ford - destino {resultado.destino}\n# vertice sucessor distancia\n")
+        for v in range(1, len(resultado.distancias)):
+            sucessor = resultado.sucessores[v]
+            arquivo.write(f"{v} {sucessor if sucessor is not None else 0} {resultado.distancias[v]}\n")
+
+
+def executar_bellman_ford(grafo):
+    from caminhos_p3 import bellman_ford
+    destino = int(input("Vértice de destino: "))
+    grafo.validar_vertice(destino)
+    motor = escolher_motor(grafo)
+    inicio = perf_counter()
+    if motor == "c":
+        from motor_c import bellman_ford_c
+        resultado = bellman_ford_c(grafo, destino, verificar_grafo=True)
+    else:
+        resultado = bellman_ford(grafo, destino, verificar_grafo=True)
+    print(f"Bellman-Ford ({motor}) em {perf_counter() - inicio:.4f} s")
+    print("Ciclo negativo que alcança o destino:", "sim" if resultado.tem_ciclo_negativo else "não")
+    print("Ciclo negativo no grafo:", "sim" if resultado.ciclo_no_grafo else "não")
+    nome = f"caminhos_bf_{motor}_{destino}.txt"
+    salvar_bellman_ford(nome, resultado)
+    print(f"Distâncias e árvore de caminhos mínimos salvas em {nome}")
+    texto = input("Origem para consultar o caminho (Enter para voltar): ").strip()
+    if texto:
+        origem = int(texto)
+        grafo.validar_vertice(origem)
+        print("Distância:", resultado.distancias[origem])
+        print("Caminho:", resultado.caminho(origem))
+
+
+def escolher_todos_pares(grafo, algoritmo):
+    from caminhos_p3 import floyd_warshall, floyd_warshall_blocado, johnson
+    com_c = motor_c_disponivel(grafo)
+    if algoritmo == "floyd":
+        opcoes = {"1": ("Python clássico", floyd_warshall),
+                  "2": ("Python blocado", floyd_warshall_blocado)}
+        if com_c:
+            from motor_c import floyd_warshall_c
+            opcoes["3"] = ("C clássico", lambda g: floyd_warshall_c(g, "classico"))
+            opcoes["4"] = ("C blocado com inteiros", lambda g: floyd_warshall_c(g, "blocado"))
+    else:
+        opcoes = {"1": ("Python", johnson)}
+        if com_c:
+            from motor_c import johnson_c
+            opcoes["2"] = ("C", johnson_c)
+    for chave, (nome, _) in opcoes.items():
+        print(f"{chave} - {nome}")
+    escolha = input("Versão: ").strip()
+    if escolha not in opcoes:
+        raise ValueError("Versão inválida.")
+    return opcoes[escolha]
+
+
+def executar_todos_pares(grafo, algoritmo):
+    n = grafo.numero_vertices
+    print(f"As matrizes de {n + 1} x {n + 1} posições ocupam até "
+          f"{12 * (n + 1) ** 2 / 2 ** 30:.2f} GiB.")
+    nome, funcao = escolher_todos_pares(grafo, algoritmo)
+    inicio = perf_counter()
+    resultado = funcao(grafo)
+    print(f"{nome} em {perf_counter() - inicio:.4f} s")
+    print("Ciclo negativo no grafo:", "sim" if resultado.tem_ciclo_negativo else "não")
+    if resultado.distancias is None:
+        print("Johnson não calcula distâncias quando há ciclo negativo.")
+        return
+    while True:
+        texto = input("Origem e destino separados por espaço (Enter para voltar): ").split()
+        if not texto:
+            return
+        origem, destino = map(int, texto)
+        print("Distância:", resultado.distancia(origem, destino))
+        print("Caminho:", resultado.caminho(origem, destino))
+
+
 def main(direcionado=False):
     nome_arquivo = input("Digite o nome do arquivo do grafo: ").strip()
 
@@ -205,6 +289,9 @@ def main(direcionado=False):
         print("5 - Componentes conexas")
         print("6 - Estatísticas do grafo")
         print("7 - Dijkstra (distâncias e árvore de caminhos mínimos)")
+        print("8 - Bellman-Ford (distâncias até um destino)")
+        print("9 - Floyd-Warshall (distâncias entre todos os pares)")
+        print("10 - Johnson (distâncias entre todos os pares)")
         print("0 - Sair")
 
         opcao = input("Opção: ").strip()
@@ -224,6 +311,12 @@ def main(direcionado=False):
                 mostrar_estatisticas(grafo)
             elif opcao == "7":
                 executar_dijkstra(grafo)
+            elif opcao == "8":
+                executar_bellman_ford(grafo)
+            elif opcao == "9":
+                executar_todos_pares(grafo, "floyd")
+            elif opcao == "10":
+                executar_todos_pares(grafo, "johnson")
             elif opcao == "0":
                 break
             else:

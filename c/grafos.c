@@ -11,6 +11,10 @@
 #include <time.h>
 #include <zlib.h>
 
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
 #define TAMANHO_LINHA 4096
 
 struct GrLeitura {
@@ -476,6 +480,514 @@ int gr_dijkstra(int32_t n, const int64_t *inicio, const int32_t *adjacentes,
     if (segundos != NULL)
         *segundos = agora() - comeco;
     return GR_OK;
+}
+
+static int numero_threads(int threads)
+{
+#ifdef _OPENMP
+    return threads > 0 ? threads : omp_get_max_threads();
+#else
+    (void) threads;
+    return 1;
+#endif
+}
+
+int gr_montar_csr_direcionado(const GrLeitura *leitura, int transposto, int64_t *inicio,
+                              int32_t *adjacentes, double *pesos)
+{
+    int32_t n = leitura->n;
+    int64_t m = leitura->m;
+    const int32_t *origem = transposto ? leitura->v : leitura->u;
+    const int32_t *destino = transposto ? leitura->u : leitura->v;
+    memset(inicio, 0, ((size_t) n + 2) * sizeof *inicio);
+    for (int64_t e = 0; e < m; e++)
+        inicio[origem[e] + 1]++;
+    for (int64_t x = 1; x <= (int64_t) n + 1; x++)
+        inicio[x] += inicio[x - 1];
+    int64_t *proximo = malloc(((size_t) n + 1) * sizeof *proximo);
+    if (proximo == NULL)
+        return GR_ERRO_MEMORIA;
+    memcpy(proximo, inicio, ((size_t) n + 1) * sizeof *proximo);
+    for (int64_t e = 0; e < m; e++) {
+        int64_t p = proximo[origem[e]]++;
+        adjacentes[p] = destino[e];
+        pesos[p] = leitura->peso[e];
+    }
+    free(proximo);
+    return GR_OK;
+}
+
+static void inicializar_float(int32_t n, const int64_t *inicio, const int32_t *adjacentes,
+                              const double *pesos, double *dist, int32_t *pred, int nt)
+{
+    size_t t = (size_t) n + 1;
+#pragma omp parallel for num_threads(nt) schedule(static)
+    for (size_t i = 0; i < t; i++) {
+        double *di = dist + i * t;
+        int32_t *pi = pred + i * t;
+        for (size_t j = 0; j < t; j++) {
+            di[j] = INFINITY;
+            pi[j] = 0;
+        }
+        if (i > 0)
+            di[i] = 0.0;
+    }
+    for (int32_t u = 1; u <= n; u++)
+        for (int64_t e = inicio[u]; e < inicio[u + 1]; e++) {
+            size_t x = (size_t) u * t + (size_t) adjacentes[e];
+            if (pesos[e] < dist[x]) {
+                dist[x] = pesos[e];
+                pred[x] = u;
+            }
+        }
+}
+
+int gr_floyd_warshall_classico(int32_t n, const int64_t *inicio, const int32_t *adjacentes,
+                               const double *pesos, double *dist, int32_t *pred, int threads)
+{
+    size_t t = (size_t) n + 1;
+    int nt = numero_threads(threads);
+    double *linha = malloc(t * sizeof *linha);
+    int32_t *pais = malloc(t * sizeof *pais);
+    if (linha == NULL || pais == NULL) {
+        free(linha);
+        free(pais);
+        return GR_ERRO_MEMORIA;
+    }
+    inicializar_float(n, inicio, adjacentes, pesos, dist, pred, nt);
+    for (int32_t k = 1; k <= n; k++) {
+        memcpy(linha, dist + (size_t) k * t, t * sizeof *linha);
+        memcpy(pais, pred + (size_t) k * t, t * sizeof *pais);
+#pragma omp parallel for num_threads(nt) schedule(static)
+        for (int32_t i = 1; i <= n; i++) {
+            double *di = dist + (size_t) i * t;
+            int32_t *pi = pred + (size_t) i * t;
+            double dik = di[k];
+            if (dik == INFINITY)
+                continue;
+#pragma omp simd
+            for (size_t j = 1; j < t; j++) {
+                double c = dik + linha[j];
+                int melhora = c < di[j];
+                di[j] = melhora ? c : di[j];
+                pi[j] = melhora ? pais[j] : pi[j];
+            }
+        }
+    }
+    free(linha);
+    free(pais);
+    return GR_OK;
+}
+
+static void ladrilho(int32_t *dist, size_t t, int32_t i0, int32_t i1, int32_t j0, int32_t j1,
+                     int32_t k0, int32_t k1)
+{
+    for (int32_t k = k0; k < k1; k++) {
+        const int32_t *dk = dist + (size_t) k * t;
+        for (int32_t i = i0; i < i1; i++) {
+            int32_t *di = dist + (size_t) i * t;
+            int32_t dik = di[k];
+            if (dik == GR_INF_INTEIRO)
+                continue;
+#pragma omp simd
+            for (int32_t j = j0; j < j1; j++) {
+                int32_t dkj = dk[j];
+                int32_t c = dik + dkj;
+                c = c < GR_NEG_INTEIRO ? GR_NEG_INTEIRO : c;
+                c = dkj == GR_INF_INTEIRO ? GR_INF_INTEIRO : c;
+                di[j] = c < di[j] ? c : di[j];
+            }
+        }
+    }
+}
+
+static void reconstruir_arvores(int32_t n, const int64_t *inicio, const int32_t *adjacentes,
+                                const int32_t *inteiros, const int32_t *dist, void *pred,
+                                int pred16, int nt, int *erro)
+{
+    size_t t = (size_t) n + 1;
+#pragma omp parallel num_threads(nt)
+    {
+        int32_t *fila = malloc(t * sizeof *fila);
+        unsigned char *visto = malloc(t);
+        if (fila == NULL || visto == NULL) {
+#pragma omp atomic write
+            *erro = GR_ERRO_MEMORIA;
+        }
+#pragma omp for schedule(dynamic, 16)
+        for (size_t i = 0; i < t; i++) {
+            if (fila == NULL || visto == NULL)
+                continue;
+            const int32_t *di = dist + i * t;
+            int16_t *p16 = (int16_t *) pred + i * t;
+            int32_t *p32 = (int32_t *) pred + i * t;
+            if (pred16)
+                memset(p16, 0, t * sizeof *p16);
+            else
+                memset(p32, 0, t * sizeof *p32);
+            if (i == 0)
+                continue;
+            memset(visto, 0, t);
+            int32_t cabeca = 0, cauda = 0;
+            fila[cauda++] = (int32_t) i;
+            visto[i] = 1;
+            while (cabeca < cauda) {
+                int32_t u = fila[cabeca++];
+                int32_t du = di[u];
+                for (int64_t e = inicio[u]; e < inicio[u + 1]; e++) {
+                    int32_t v = adjacentes[e];
+                    if (visto[v] || du + inteiros[e] != di[v])
+                        continue;
+                    visto[v] = 1;
+                    fila[cauda++] = v;
+                    if (pred16)
+                        p16[v] = (int16_t) u;
+                    else
+                        p32[v] = u;
+                }
+            }
+        }
+        free(fila);
+        free(visto);
+    }
+}
+
+int gr_floyd_warshall_blocado(int32_t n, const int64_t *inicio, const int32_t *adjacentes,
+                              const double *pesos, double escala, int32_t *dist, void *pred,
+                              int pred16, int32_t bloco, int threads)
+{
+    if (bloco < 1 || (pred16 && n > INT16_MAX))
+        return GR_ERRO_FORMATO;
+    size_t t = (size_t) n + 1;
+    int nt = numero_threads(threads);
+    int64_t m = inicio[n + 1];
+    int32_t *inteiros = malloc((size_t) (m > 0 ? m : 1) * sizeof *inteiros);
+    if (inteiros == NULL)
+        return GR_ERRO_MEMORIA;
+    for (int64_t e = 0; e < m; e++)
+        inteiros[e] = (int32_t) llround(pesos[e] * escala);
+
+#pragma omp parallel for num_threads(nt) schedule(static)
+    for (size_t i = 0; i < t; i++) {
+        int32_t *di = dist + i * t;
+        for (size_t j = 0; j < t; j++)
+            di[j] = GR_INF_INTEIRO;
+        if (i > 0)
+            di[i] = 0;
+    }
+    for (int32_t u = 1; u <= n; u++)
+        for (int64_t e = inicio[u]; e < inicio[u + 1]; e++) {
+            size_t x = (size_t) u * t + (size_t) adjacentes[e];
+            if (inteiros[e] < dist[x])
+                dist[x] = inteiros[e];
+        }
+
+    int32_t b = bloco;
+    int32_t blocos = (n + b - 1) / b;
+    for (int32_t r = 0; r < blocos; r++) {
+        int32_t k0 = 1 + r * b;
+        int32_t k1 = k0 + b < n + 1 ? k0 + b : n + 1;
+        ladrilho(dist, t, k0, k1, k0, k1, k0, k1);
+#pragma omp parallel for num_threads(nt) schedule(dynamic)
+        for (int32_t x = 0; x < 2 * blocos; x++) {
+            int32_t outro = x % blocos;
+            if (outro == r)
+                continue;
+            int32_t a0 = 1 + outro * b;
+            int32_t a1 = a0 + b < n + 1 ? a0 + b : n + 1;
+            if (x < blocos)
+                ladrilho(dist, t, k0, k1, a0, a1, k0, k1);
+            else
+                ladrilho(dist, t, a0, a1, k0, k1, k0, k1);
+        }
+#pragma omp parallel for num_threads(nt) collapse(2) schedule(static)
+        for (int32_t bi = 0; bi < blocos; bi++)
+            for (int32_t bj = 0; bj < blocos; bj++) {
+                if (bi == r || bj == r)
+                    continue;
+                int32_t i0 = 1 + bi * b;
+                int32_t i1 = i0 + b < n + 1 ? i0 + b : n + 1;
+                int32_t j0 = 1 + bj * b;
+                int32_t j1 = j0 + b < n + 1 ? j0 + b : n + 1;
+                ladrilho(dist, t, i0, i1, j0, j1, k0, k1);
+            }
+    }
+
+    int erro = GR_OK;
+    reconstruir_arvores(n, inicio, adjacentes, inteiros, dist, pred, pred16, nt, &erro);
+    free(inteiros);
+    return erro;
+}
+
+typedef struct {
+    double *valores;
+    double *peso_sucessor;
+    int32_t *fronteira;
+    int32_t *proxima;
+    int32_t *sementes;
+    int32_t *pilha;
+    unsigned char *marcado;
+    unsigned char *cor;
+} AreaBF;
+
+static void liberar_area(AreaBF *a)
+{
+    free(a->valores);
+    free(a->peso_sucessor);
+    free(a->fronteira);
+    free(a->proxima);
+    free(a->sementes);
+    free(a->pilha);
+    free(a->marcado);
+    free(a->cor);
+}
+
+static int criar_area(AreaBF *a, int32_t n)
+{
+    size_t t = (size_t) n + 1;
+    a->valores = malloc(t * sizeof *a->valores);
+    a->peso_sucessor = malloc(t * sizeof *a->peso_sucessor);
+    a->fronteira = malloc(t * sizeof *a->fronteira);
+    a->proxima = malloc(t * sizeof *a->proxima);
+    a->sementes = malloc(t * sizeof *a->sementes);
+    a->pilha = malloc(t * sizeof *a->pilha);
+    a->marcado = calloc(t, 1);
+    a->cor = malloc(t);
+    if (!a->valores || !a->peso_sucessor || !a->fronteira || !a->proxima || !a->sementes
+            || !a->pilha || !a->marcado || !a->cor) {
+        liberar_area(a);
+        return GR_ERRO_MEMORIA;
+    }
+    return GR_OK;
+}
+
+static int32_t ciclos_negativos(int32_t n, const int32_t *sucessor, const double *peso,
+                                unsigned char *cor, int32_t *saida)
+{
+    int32_t total = 0;
+    memset(cor, 0, (size_t) n + 1);
+    for (int32_t raiz = 1; raiz <= n; raiz++) {
+        int32_t u = raiz;
+        while (u && !cor[u]) {
+            cor[u] = 1;
+            u = sucessor[u];
+        }
+        if (u && cor[u] == 1) {
+            long double soma = 0.0L;
+            int32_t v = u;
+            do {
+                soma += peso[v];
+                v = sucessor[v];
+            } while (v != u);
+            if (soma < 0.0L)
+                do {
+                    saida[total++] = v;
+                    v = sucessor[v];
+                } while (v != u);
+        }
+        u = raiz;
+        while (u && cor[u] == 1) {
+            cor[u] = 2;
+            u = sucessor[u];
+        }
+    }
+    return total;
+}
+
+static void marcar_afetados(const int64_t *inicio, const int32_t *adjacentes,
+                            const int32_t *sementes, int32_t quantidade, double *dist,
+                            int32_t *sucessor, int32_t *pilha)
+{
+    int32_t topo = 0;
+    for (int32_t x = 0; x < quantidade; x++) {
+        int32_t s = sementes[x];
+        if (dist[s] != -INFINITY) {
+            dist[s] = -INFINITY;
+            sucessor[s] = 0;
+            pilha[topo++] = s;
+        }
+    }
+    while (topo > 0) {
+        int32_t u = pilha[--topo];
+        for (int64_t e = inicio[u]; e < inicio[u + 1]; e++) {
+            int32_t v = adjacentes[e];
+            if (dist[v] != -INFINITY) {
+                dist[v] = -INFINITY;
+                sucessor[v] = 0;
+                pilha[topo++] = v;
+            }
+        }
+    }
+}
+
+static int bf_destino(int32_t n, const int64_t *inicio, const int32_t *adjacentes,
+                      const double *pesos, int32_t destino, int tem_negativo, double *dist,
+                      int32_t *sucessor, AreaBF *a)
+{
+    int32_t tamanho;
+    int ciclo = 0;
+    for (int32_t v = 0; v <= n; v++) {
+        dist[v] = INFINITY;
+        sucessor[v] = 0;
+    }
+    if (destino == 0) {
+        for (int32_t v = 1; v <= n; v++) {
+            dist[v] = 0.0;
+            a->fronteira[v - 1] = v;
+        }
+        tamanho = n;
+    } else {
+        dist[destino] = 0.0;
+        a->fronteira[0] = destino;
+        tamanho = 1;
+    }
+    for (int32_t rodada = 1; rodada <= n && tamanho > 0; rodada++) {
+        for (int32_t x = 0; x < tamanho; x++)
+            a->valores[x] = dist[a->fronteira[x]];
+        int32_t novos = 0;
+        for (int32_t x = 0; x < tamanho; x++) {
+            int32_t u = a->fronteira[x];
+            double du = a->valores[x];
+            for (int64_t e = inicio[u]; e < inicio[u + 1]; e++) {
+                int32_t v = adjacentes[e];
+                double c = du + pesos[e];
+                if (c < dist[v]) {
+                    dist[v] = c;
+                    sucessor[v] = u;
+                    a->peso_sucessor[v] = pesos[e];
+                    if (!a->marcado[v]) {
+                        a->marcado[v] = 1;
+                        a->proxima[novos++] = v;
+                    }
+                }
+            }
+        }
+        for (int32_t x = 0; x < novos; x++)
+            a->marcado[a->proxima[x]] = 0;
+        int32_t *troca = a->fronteira;
+        a->fronteira = a->proxima;
+        a->proxima = troca;
+        tamanho = novos;
+        if (tamanho == 0)
+            break;
+        int32_t quantidade;
+        const int32_t *lista;
+        if (rodada == n) {
+            lista = a->fronteira;
+            quantidade = tamanho;
+        } else if (tem_negativo && rodada % 16 == 0) {
+            quantidade = ciclos_negativos(n, sucessor, a->peso_sucessor, a->cor, a->sementes);
+            lista = a->sementes;
+        } else {
+            continue;
+        }
+        if (quantidade == 0)
+            continue;
+        ciclo = 1;
+        if (destino == 0)
+            return 1;
+        marcar_afetados(inicio, adjacentes, lista, quantidade, dist, sucessor, a->pilha);
+        int32_t restantes = 0;
+        for (int32_t x = 0; x < tamanho; x++)
+            if (dist[a->fronteira[x]] != -INFINITY)
+                a->fronteira[restantes++] = a->fronteira[x];
+        tamanho = restantes;
+    }
+    return ciclo;
+}
+
+static int tem_peso_negativo(int32_t n, const int64_t *inicio, const double *pesos)
+{
+    for (int64_t e = 0; e < inicio[n + 1]; e++)
+        if (pesos[e] < 0)
+            return 1;
+    return 0;
+}
+
+int gr_bellman_ford(int32_t n, const int64_t *inicio, const int32_t *adjacentes,
+                    const double *pesos, int32_t destino, double *dist, int32_t *sucessor,
+                    int32_t *ciclo)
+{
+    if (destino < 0 || destino > n)
+        return GR_ERRO_ORIGEM;
+    AreaBF area;
+    if (criar_area(&area, n) != GR_OK)
+        return GR_ERRO_MEMORIA;
+    *ciclo = bf_destino(n, inicio, adjacentes, pesos, destino,
+                        tem_peso_negativo(n, inicio, pesos), dist, sucessor, &area);
+    liberar_area(&area);
+    return GR_OK;
+}
+
+int gr_bellman_ford_todos(int32_t n, const int64_t *inicio, const int32_t *adjacentes,
+                          const double *pesos, double *dist, int32_t *ciclo, int threads)
+{
+    size_t t = (size_t) n + 1;
+    int nt = numero_threads(threads);
+    int negativo = tem_peso_negativo(n, inicio, pesos);
+    int erro = GR_OK;
+    int encontrou = 0;
+    for (size_t j = 0; j < t; j++)
+        dist[j] = INFINITY;
+#pragma omp parallel num_threads(nt) reduction(| : encontrou)
+    {
+        AreaBF area;
+        int32_t *sucessor = malloc(t * sizeof *sucessor);
+        int ok = sucessor != NULL && criar_area(&area, n) == GR_OK;
+        if (!ok) {
+#pragma omp atomic write
+            erro = GR_ERRO_MEMORIA;
+        }
+#pragma omp for schedule(dynamic, 8)
+        for (int32_t d = 1; d <= n; d++)
+            if (ok)
+                encontrou |= bf_destino(n, inicio, adjacentes, pesos, d, negativo,
+                                        dist + (size_t) d * t, sucessor, &area);
+        if (ok)
+            liberar_area(&area);
+        free(sucessor);
+    }
+    *ciclo = encontrou;
+    return erro;
+}
+
+int gr_johnson(int32_t n, const int64_t *inicio, const int32_t *adjacentes,
+               const double *pesos, const double *potencial, double *dist, int32_t *pred,
+               int threads)
+{
+    size_t t = (size_t) n + 1;
+    int nt = numero_threads(threads);
+    int64_t m = inicio[n + 1];
+    double *ajustados = malloc((size_t) (m > 0 ? m : 1) * sizeof *ajustados);
+    if (ajustados == NULL)
+        return GR_ERRO_MEMORIA;
+    for (int32_t u = 1; u <= n; u++)
+        for (int64_t e = inicio[u]; e < inicio[u + 1]; e++) {
+            double c = pesos[e] + potencial[u] - potencial[adjacentes[e]];
+            ajustados[e] = c < 0 ? 0.0 : c;
+        }
+    for (size_t j = 0; j < t; j++) {
+        dist[j] = INFINITY;
+        pred[j] = 0;
+    }
+    int erro = GR_OK;
+#pragma omp parallel for num_threads(nt) schedule(dynamic, 8)
+    for (int32_t s = 1; s <= n; s++) {
+        double *ds = dist + (size_t) s * t;
+        int32_t *ps = pred + (size_t) s * t;
+        int r = gr_dijkstra(n, inicio, adjacentes, ajustados, s, GR_FILA_HEAP, ds, ps, 0.0,
+                            NULL, NULL, NULL);
+        if (r != GR_OK) {
+#pragma omp atomic write
+            erro = r;
+            continue;
+        }
+        for (int32_t v = 1; v <= n; v++)
+            if (ds[v] != INFINITY)
+                ds[v] = ds[v] - potencial[s] + potencial[v];
+    }
+    free(ajustados);
+    return erro;
 }
 
 #ifndef GR_OPCOES

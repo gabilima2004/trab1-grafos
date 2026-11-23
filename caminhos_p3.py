@@ -34,6 +34,7 @@ class ResultadoBellmanFord:
     distancias: Sequence[float]
     sucessores: Sequence[int | None]
     tem_ciclo_negativo: bool
+    ciclo_no_grafo: bool | None = None
 
     def caminho(self, origem):
         """Retorna a rota ate o destino ou [] sem minimo finito."""
@@ -149,7 +150,7 @@ def _bellman_ford_csr(reverso, destino):
     return ResultadoBellmanFord(destino, distancias, sucessores, tem_ciclo)
 
 
-def bellman_ford(grafo, destino, *, transposto=None):
+def bellman_ford(grafo, destino, *, transposto=None, verificar_grafo=False):
     """Calcula caminhos ate destino, com ciclo negativo detectavel se alcanca destino.
 
     transposto pode ser fornecido para reutilizar a preparacao em varias chamadas.
@@ -158,7 +159,11 @@ def bellman_ford(grafo, destino, *, transposto=None):
     """
     grafo.validar_vertice(destino)
     reverso = transpor(grafo) if transposto is None else transposto
-    return _bellman_ford(reverso, destino)
+    resultado = _bellman_ford(reverso, destino)
+    if verificar_grafo:
+        resultado.ciclo_no_grafo = (resultado.tem_ciclo_negativo
+                                    or _bellman_ford(reverso, None).tem_ciclo_negativo)
+    return resultado
 
 
 def tem_ciclo_negativo_global(grafo):
@@ -222,24 +227,81 @@ def _bellman_ford(reverso, destino):
     return ResultadoBellmanFord(destino, distancias, sucessores, tem_ciclo)
 
 
+INF_INTEIRO = 0x3FFFFFFF
+NEG_INTEIRO = -INF_INTEIRO
+
+
 @dataclass
-class ResultadoFloydWarshall:
+class ResultadoTodosPares:
     distancias: object
     predecessores: object
     tem_ciclo_negativo: bool
+    escala: int | None = None
+
+    def _exigir_distancias(self):
+        if self.distancias is None:
+            raise ValueError("Ciclo negativo: as distancias nao foram calculadas.")
+
+    def distancia(self, origem, destino):
+        self._exigir_distancias()
+        valor = self.distancias[origem, destino]
+        if self.escala is None:
+            return float(valor)
+        if valor == INF_INTEIRO:
+            return inf
+        if valor == NEG_INTEIRO:
+            return -inf
+        return int(valor) / self.escala
+
+    def submatriz(self, vertices):
+        import numpy as np
+
+        self._exigir_distancias()
+        bloco = self.distancias[np.ix_(vertices, vertices)]
+        if self.escala is None:
+            return bloco.astype(np.float64)
+        saida = bloco / self.escala
+        saida[bloco == INF_INTEIRO] = inf
+        saida[bloco == NEG_INTEIRO] = -inf
+        return saida
 
     def caminho(self, origem, destino):
-        """Retorna a rota ou [] sem minimo finito."""
+        self._exigir_distancias()
         n = self.distancias.shape[0] - 1
         if not (1 <= origem <= n and 1 <= destino <= n):
             raise ValueError("Origem ou destino invalido.")
-        if self.distancias[origem, destino] in (inf, -inf):
+        if self.predecessores is None:
+            raise ValueError("Este resultado nao guarda as arvores de caminhos minimos.")
+        if self.distancia(origem, destino) in (inf, -inf):
             return []
         return reconstruir_caminho(self.predecessores[origem], origem, destino)
 
 
-def floyd_warshall(grafo):
-    """Calcula distancias e predecessores indexados por origem e destino."""
+ResultadoFloydWarshall = ResultadoTodosPares
+
+
+def marcar_ciclos_negativos(distancias, predecessores, infinito, marcador, faixa=1024):
+    import numpy as np
+
+    negativos = np.flatnonzero(distancias.diagonal()[1:] < 0) + 1
+    if not negativos.size:
+        return False
+    tamanho = distancias.shape[1]
+    alcance = np.packbits(distancias[negativos] != infinito, axis=1)
+    grupos, rotulos = np.unique(alcance, axis=0, return_inverse=True)
+    destinos = np.unpackbits(grupos, axis=1, count=tamanho).astype(np.float32)
+    membros = np.zeros((negativos.size, len(grupos)), np.float32)
+    membros[np.arange(negativos.size), rotulos.ravel()] = 1
+    for inicio in range(0, distancias.shape[0], faixa):
+        linhas = slice(inicio, inicio + faixa)
+        chegam = (distancias[linhas][:, negativos] != infinito).astype(np.float32) @ membros
+        afetados = (chegam > 0).astype(np.float32) @ destinos > 0
+        distancias[linhas][afetados] = marcador
+        predecessores[linhas][afetados] = 0
+    return True
+
+
+def _matrizes_iniciais(grafo):
     import numpy as np
 
     tamanho = grafo.numero_vertices + 1
@@ -251,23 +313,121 @@ def floyd_warshall(grafo):
             if peso < distancias[u, v]:
                 distancias[u, v] = peso
                 predecessores[u, v] = u
+    return distancias, predecessores
 
+
+def floyd_warshall(grafo):
+    """Calcula distancias e predecessores indexados por origem e destino."""
+    import numpy as np
+
+    distancias, predecessores = _matrizes_iniciais(grafo)
+    tamanho = distancias.shape[0]
     candidatas = np.empty(tamanho)
     melhores = np.empty(tamanho, dtype=bool)
-    for k in range(1, tamanho):
-        dist_k = distancias[k].copy()
-        pais_k = predecessores[k].copy()
-        for u in np.flatnonzero(distancias[:, k] != inf):
-            np.add(distancias[u, k], dist_k, out=candidatas)
-            np.less(candidatas, distancias[u], out=melhores)
-            np.copyto(distancias[u], candidatas, where=melhores)
-            np.copyto(predecessores[u], pais_k, where=melhores)
+    with np.errstate(invalid="ignore"):
+        for k in range(1, tamanho):
+            dist_k = distancias[k].copy()
+            pais_k = predecessores[k].copy()
+            for u in np.flatnonzero(distancias[:, k] != inf):
+                np.add(distancias[u, k], dist_k, out=candidatas)
+                np.less(candidatas, distancias[u], out=melhores)
+                np.copyto(distancias[u], candidatas, where=melhores)
+                np.copyto(predecessores[u], pais_k, where=melhores)
 
-    negativos = np.flatnonzero(distancias.diagonal() < 0)
-    for k in negativos:
-        destinos = np.flatnonzero(distancias[k] != inf)
-        for u in np.flatnonzero(distancias[:, k] != inf):
-            distancias[u, destinos] = -inf
-            predecessores[u, destinos] = 0
+    ciclo = marcar_ciclos_negativos(distancias, predecessores, inf, -inf)
+    return ResultadoTodosPares(distancias, predecessores, ciclo)
 
-    return ResultadoFloydWarshall(distancias, predecessores, bool(negativos.size))
+
+def _relaxar_faixa(distancias, predecessores, i0, i1, k0, k1, linhas_k, pais_k):
+    import numpy as np
+
+    linhas = distancias[i0:i1]
+    pais = predecessores[i0:i1]
+    candidatas = np.empty_like(linhas)
+    melhores = np.empty(linhas.shape, dtype=bool)
+    for k in range(k0, k1):
+        if i0 == k0:
+            linhas_k[k - k0] = distancias[k]
+            pais_k[k - k0] = predecessores[k]
+        np.add(linhas[:, k, None], linhas_k[k - k0], out=candidatas)
+        np.less(candidatas, linhas, out=melhores)
+        np.copyto(linhas, candidatas, where=melhores)
+        np.copyto(pais, pais_k[k - k0], where=melhores)
+
+
+def floyd_warshall_blocado(grafo, bloco=64):
+    import numpy as np
+
+    if bloco < 1:
+        raise ValueError("O bloco deve ser positivo.")
+    distancias, predecessores = _matrizes_iniciais(grafo)
+    tamanho = distancias.shape[0]
+    linhas_k = np.empty((bloco, tamanho))
+    pais_k = np.empty((bloco, tamanho), dtype=predecessores.dtype)
+    with np.errstate(invalid="ignore"):
+        for k0 in range(1, tamanho, bloco):
+            k1 = min(k0 + bloco, tamanho)
+            _relaxar_faixa(distancias, predecessores, k0, k1, k0, k1, linhas_k, pais_k)
+            for i0 in range(1, tamanho, bloco):
+                if i0 != k0:
+                    _relaxar_faixa(distancias, predecessores, i0, min(i0 + bloco, tamanho),
+                                   k0, k1, linhas_k, pais_k)
+
+    ciclo = marcar_ciclos_negativos(distancias, predecessores, inf, -inf)
+    return ResultadoTodosPares(distancias, predecessores, ciclo)
+
+
+def escala_inteira(pesos, numero_vertices, limite=2 ** 29):
+    import numpy as np
+
+    pesos = np.asarray(pesos, dtype=np.float64)
+    maximo = float(np.abs(pesos).max()) if pesos.size else 0.0
+    for casas in range(7):
+        escala = 10 ** casas
+        valores = pesos * escala
+        if np.all(np.abs(valores - np.round(valores)) <= 1e-6):
+            if maximo * escala * max(numero_vertices - 1, 1) >= limite:
+                raise ValueError("Pesos grandes demais para distancias inteiras de 32 bits.")
+            return escala
+    raise ValueError("Pesos com mais de seis casas decimais: use o Floyd-Warshall classico.")
+
+
+def _arcos(grafo):
+    import numpy as np
+
+    if grafo.representacao == "csr":
+        origens = np.repeat(np.arange(grafo.numero_vertices + 1, dtype=np.int32),
+                            np.diff(grafo.inicio))
+        return origens, grafo.adjacentes, grafo.pesos
+    origens, destinos, pesos = [], [], []
+    for u in range(1, grafo.numero_vertices + 1):
+        for v, peso in grafo.vizinhos_com_pesos(u):
+            origens.append(u)
+            destinos.append(v)
+            pesos.append(peso)
+    return (np.asarray(origens, np.int32), np.asarray(destinos, np.int32),
+            np.asarray(pesos, np.float64))
+
+
+def johnson(grafo):
+    import numpy as np
+    from caminhos_minimos import dijkstra
+    from grafo_csr import montar_csr
+
+    potencial = _bellman_ford(grafo, None)
+    if potencial.tem_ciclo_negativo:
+        return ResultadoTodosPares(None, None, True)
+    h = np.asarray(potencial.distancias, dtype=np.float64)
+    n = grafo.numero_vertices
+    origens, destinos, pesos = _arcos(grafo)
+    ajustados = np.maximum(pesos + h[origens] - h[destinos], 0.0)
+    reponderado = montar_csr(n, origens, destinos, ajustados, direcionado=True)
+    distancias = np.full((n + 1, n + 1), inf)
+    predecessores = np.zeros((n + 1, n + 1), dtype=np.int32)
+    for s in range(1, n + 1):
+        d, pais = dijkstra(reponderado, s, "heap")
+        d = np.asarray(d, dtype=np.float64)
+        finitos = d != inf
+        distancias[s, finitos] = d[finitos] - h[s] + h[finitos]
+        predecessores[s] = [p or 0 for p in pais]
+    return ResultadoTodosPares(distancias, predecessores, False)

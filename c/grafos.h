@@ -29,6 +29,29 @@ int gr_dijkstra(int32_t n, const int64_t *inicio, const int32_t *adjacentes,
                 double *dist, int32_t *pai, double limite_segundos,
                 int64_t *extracoes, int64_t *atualizacoes, double *segundos);
 
+int gr_montar_csr_direcionado(const GrLeitura *leitura, int transposto, int64_t *inicio,
+                              int32_t *adjacentes, double *pesos);
+
+enum { GR_INF_INTEIRO = 0x3FFFFFFF, GR_NEG_INTEIRO = -0x3FFFFFFF };
+
+int gr_floyd_warshall_classico(int32_t n, const int64_t *inicio, const int32_t *adjacentes,
+                               const double *pesos, double *dist, int32_t *pred, int threads);
+
+int gr_floyd_warshall_blocado(int32_t n, const int64_t *inicio, const int32_t *adjacentes,
+                              const double *pesos, double escala, int32_t *dist, void *pred,
+                              int pred16, int32_t bloco, int threads);
+
+int gr_bellman_ford(int32_t n, const int64_t *inicio, const int32_t *adjacentes,
+                    const double *pesos, int32_t destino, double *dist, int32_t *sucessor,
+                    int32_t *ciclo);
+
+int gr_bellman_ford_todos(int32_t n, const int64_t *inicio, const int32_t *adjacentes,
+                          const double *pesos, double *dist, int32_t *ciclo, int threads);
+
+int gr_johnson(int32_t n, const int64_t *inicio, const int32_t *adjacentes,
+               const double *pesos, const double *potencial, double *dist, int32_t *pred,
+               int threads);
+
 const char *gr_compilacao(void);
 
 #endif

@@ -153,8 +153,6 @@ def ler_grafo_csr(nome_arquivo, leitor="numpy", direcionado=False, transposto=Fa
     if leitor == "numpy":
         return _ler_numpy(nome_arquivo, direcionado, transposto)
     if leitor == "c":
-        if direcionado:
-            raise ValueError("O leitor C aceita apenas grafos não direcionados.")
         from motor_c import ler_csr
-        return ler_csr(nome_arquivo)
+        return ler_csr(nome_arquivo, direcionado, transposto)
     raise ValueError("Leitor deve ser 'numpy' ou 'c'.")
