@@ -3,10 +3,13 @@
 \usepackage[brazil]{babel}
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
-\usepackage{booktabs,amsmath,xcolor,tikz}
+\usepackage{booktabs,amsmath,xcolor,tikz,pgfplots}
+\pgfplotsset{compat=1.18}
 \usetikzlibrary{arrows.meta,positioning}
 \definecolor{cforte}{HTML}{1F5A96}
 \definecolor{pyforte}{HTML}{C0571B}
+\definecolor{verde}{HTML}{2E7D32}
+\definecolor{cinza}{HTML}{777777}
 \setbeamercolor{frametitle}{bg=cforte,fg=white}
 \setbeamercolor{progress bar}{fg=pyforte}
 \setbeamercolor{alerted text}{fg=pyforte}
@@ -17,7 +20,7 @@
 \institute{Universidade Federal do Rio de Janeiro}
 \date{2026/2}
 \begin{document}
-\begin{frame}[plain,noframenumbering] % 0:20
+\begin{frame}[plain,noframenumbering]
 \vfill
 {\LARGE\bfseries\color{cforte}\inserttitle\par}
 \medskip
@@ -27,17 +30,21 @@
 \medskip
 Gabriel Pires \quad Gabriella Lima\par
 \insertinstitute\par
-\insertdate
+\insertdate\par
+\medskip
+\small\url{github.com/gabilima2004/trab1-grafos/tree/trabalho-p3}
 \vfill
 \end{frame}
 
-\begin{frame}{Objetivo e representação} % 0:50
+\begin{frame}{Grafos direcionados com pesos}
 \begin{columns}[T,onlytextwidth]
 \column{.56\textwidth}
 \begin{itemize}
-\item Ler arcos ponderados e preservar o modo não direcionado.
-\item Reutilizar BFS, DFS e Dijkstra pela interface de vizinhança.
-\item Obter caminhos até um destino e entre todos os pares.
+\item Parâmetro \texttt{direcionado}: a linha \(u\;v\;w\) vira o arco \(u\to v\).
+\item Lista, matriz e CSR guardam só as saídas.
+\item Leitor em C monta o CSR original ou o \alert{transposto} direto do arquivo.
+\item BFS, DFS e Dijkstra já usavam os vizinhos de saída: funcionam sem mudança.
+\item Dijkstra recusa pesos negativos.
 \end{itemize}
 \column{.40\textwidth}
 \centering
@@ -47,19 +54,18 @@ Gabriel Pires \quad Gabriella Lima\par
 \draw[->,thick,cforte] (u) -- node[above] {\(w\)} (v);
 \end{tikzpicture}\par
 \medskip
-\small \(u,v,w\) entra na lista de saídas de \(u\).\par
-CSR usa deslocamentos e vetores contíguos.
+\small CSR: deslocamentos e dois vetores contíguos (vizinhos e pesos).
 \end{columns}
 \end{frame}
 
-\begin{frame}{Bellman--Ford até um destino} % 1:15
+\begin{frame}{Bellman--Ford até um destino}
 \begin{columns}[T,onlytextwidth]
 \column{.56\textwidth}
-\textbf{Aula 14}
+\textbf{Otimizações (aula; Kleinberg--Tardos 6.8)}
 \begin{enumerate}
-\item Um vetor de distâncias.
-\item Só expande a fronteira atualizada.
-\item Para quando a fronteira esvazia.
+\item Um vetor de distâncias, não a tabela \(n\times n\).
+\item Só relaxa a partir de quem mudou na rodada anterior.
+\item Para na primeira rodada sem melhora.
 \end{enumerate}
 \column{.41\textwidth}
 \centering
@@ -71,39 +77,97 @@ CSR usa deslocamentos e vetores contíguos.
 \end{tikzpicture}
 \end{columns}
 \medskip
-\[
-  d(v)\gets\min\{d(v),\,w(v,u)+d_{\mathrm{anterior}}(u)\}.
-\]
-\small Uma melhora no passo \(V\) sinaliza ciclo negativo que chega ao destino.
-A consulta global usa uma raiz virtual para cobrir todo o grafo.
+\begin{itemize}
+\item Melhora na rodada \(n\) \(\Rightarrow\) ciclo negativo. A cada 16 rodadas, procura ciclo no grafo de sucessores.
+\item Quem alcança o ciclo e chega ao destino recebe \(-\infty\).
+\item Dois indicadores: ciclo que chega ao destino e ciclo em qualquer parte (raiz virtual).
+\end{itemize}
 \end{frame}
 
-\begin{frame}{Floyd--Warshall usa caminhos intermediários} % 1:00
-\begin{center}
+\begin{frame}{Floyd--Warshall com uma única matriz}
+\begin{columns}[T,onlytextwidth]
+\column{.45\textwidth}
+\centering
 \begin{tikzpicture}[>=Stealth,vert/.style={circle,draw=cforte,thick,minimum size=7mm}]
 \node[vert] at (0,0) (u) {\(u\)};
-\node[vert] at (2.5,1) (k) {\(k\)};
-\node[vert] at (5,0) (v) {\(v\)};
+\node[vert] at (2.2,1) (k) {\(k\)};
+\node[vert] at (4.4,0) (v) {\(v\)};
 \draw[->,thick,pyforte] (u) -- node[above left]{\(D_{uk}\)} (k);
 \draw[->,thick,pyforte] (k) -- node[above right]{\(D_{kv}\)} (v);
 \draw[->,thick,cforte] (u) -- node[below]{\(D_{uv}\)} (v);
 \end{tikzpicture}
-\end{center}
 \[
-  D_{uv}\gets\min(D_{uv},D_{uk}+D_{kv}).
+  D_{uv}\gets\min(D_{uv},D_{uk}+D_{kv})
 \]
-\small Matrizes reutilizadas a cada fase. Predecessores reconstroem rotas.
-Diagonal negativa indica ciclo. A marcação de \(-\infty\) depende do alcance.
+\column{.52\textwidth}
+\begin{itemize}
+\item Linha e coluna \(k\) não mudam na fase \(k\): atualiza \alert{no lugar}.
+\item Memória \(\Theta(n^2)\), em vez de \(\Theta(n^3)\).
+\item Linha \(u\) dos predecessores = árvore a partir de \(u\).
+\item Diagonal negativa \(\Rightarrow\) ciclo negativo.
+\item \(-\infty\) marcado de uma vez, com dois produtos de matrizes booleanas.
+\end{itemize}
+\end{columns}
 \end{frame}
 
-\begin{frame}{Consulta oficial até o vértice 100} % 0:40
-\centering{\large\TabelaDestino}
+\begin{frame}{Quatro versões do mesmo \(\Theta(n^3)\)}
+\centering
+\begin{tabular}{llrl}
+\toprule
+Versão & Aritmética & Memória (\(n=25\)k) & Ideia \\
+\midrule
+Python clássico & \texttt{float64} & 7,5 GB & uma linha por operação NumPy \\
+Python blocado & \texttt{float64} & 7,5 GB & faixas de 64 linhas \\
+C clássico & \texttt{float64} & 7,5 GB & laço \(k\)-\(i\)-\(j\) vetorizado, OpenMP \\
+\alert{C blocado} & \texttt{int32} & \alert{3,75 GB} & ladrilhos, inteiros, OpenMP \\
+\bottomrule
+\end{tabular}
+\par\bigskip
+\begin{itemize}
+\item A complexidade não muda. Muda o custo de cada passo.
+\item O clássico lê e escreve 7,5 GB por fase \(k\), 25.000 vezes: \alert{limitado pela memória}.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Como o C blocado funciona}
+\begin{columns}[T,onlytextwidth]
+\column{.36\textwidth}
+\centering
+\begin{tikzpicture}[scale=.55]
+\foreach \i in {0,...,3} \foreach \j in {0,...,3}
+  \draw[fill=cinza!15] (\i,-\j) rectangle ++(1,1);
+\foreach \j in {0,2,3} \draw[fill=cforte!45] (\j,-1) rectangle ++(1,1);
+\foreach \i in {0,2,3} \draw[fill=cforte!45] (1,-\i) rectangle ++(1,1);
+\draw[fill=pyforte] (1,-1) rectangle ++(1,1);
+\node at (1.5,-0.5) {\color{white}\small 1};
+\node at (0.5,-0.5) {\small 2};
+\node at (2.5,0.5) {\small 3};
+\end{tikzpicture}\par
+\footnotesize 1: diagonal; 2: linha e coluna; 3: demais blocos, em paralelo.
+\column{.60\textwidth}
+\begin{itemize}
+\item \textbf{Ladrilhos \(256\times256\)} cabem no cache e são reutilizados 256 vezes.
+\item \textbf{Pesos inteiros}: \(\times100\), aritmética exata, 8 valores por instrução AVX2.
+\item \textbf{Saturação em \(-2^{30}\)}: ciclos negativos não estouram 32 bits.
+\item \textbf{Árvores no fim}: BFS pelos arcos justos \(D_{up}+w(p,v)=D_{uv}\).
+\end{itemize}
+\medskip
+\small\alert{Os testes acharam um bug:} na ordem por blocos, ciclos de peso zero fechavam laços na árvore. A reconstrução por arcos justos resolve.
+\end{columns}
+\end{frame}
+
+\begin{frame}{Estudo 1: Bellman--Ford até o vértice 100}
+\centering{\TabelaDestino}
 \par\medskip
-\small Bellman--Ford no grafo transposto. Cada tempo é a média de dez rodadas.
-Os 12 valores finitos foram conferidos por Dijkstra em C.
+\small
+\begin{itemize}
+\item Tempo médio de 10 rodadas, desvio padrão entre parênteses.
+\item W1: ciclo \(9931\to12129\to9931\) de peso \(-3{,}88\) alcança 100; os 25.000 vértices recebem \(-\infty\).
+\item W2 a W5 conferidos por Dijkstra em C.
+\end{itemize}
 \end{frame}
 
-\begin{frame}{Cinco matrizes seletivas de distâncias} % 1:00
+\begin{frame}{Estudo 2: Floyd--Warshall entre \{10, 20, 30, 40, 50\}}
 \begin{columns}[T,onlytextwidth]
 \column{.48\textwidth}\centering \textbf{W1}\par\small\MatrizUm
 \column{.48\textwidth}\centering \textbf{W2}\par\small\MatrizDois
@@ -111,49 +175,80 @@ Os 12 valores finitos foram conferidos por Dijkstra em C.
 \medskip
 \small
 \begin{itemize}
-\item Bellman--Ford por destino gerou as cinco matrizes oficiais. Floyd--Warshall em escala oficial segue pendente.
-\item Em W1, todos os pares podem usar o ciclo \(9931\to12129\to9931\) de peso \(-3{,}88\).
-\item Dijkstra em C conferiu as 100 células de W2 a W5.
+\item As quatro versões e o Johnson deram os mesmos valores.
+\item W1: os cinco vértices alcançam o ciclo negativo e são alcançados por ele.
+\item W3 a W5 não cabem: 80 GB, 8 TB e 800 TB mesmo em \texttt{int32}. Distâncias por Bellman--Ford, no relatório.
 \end{itemize}
 \end{frame}
 
-\begin{frame}{Calibração medida em grafos sintéticos} % 1:05
-\centering{\large\TabelaCalibracao}
+\begin{frame}{Estudo 3: tempo médio (s)}
+\centering{\TabelaTempos}
 \par\medskip
 \small
 \begin{itemize}
-\item Dois graus de saída, 4 e 16. Dez rodadas por tamanho, densidade e algoritmo.
-\item Faixas das médias em segundos por rodada. Pesos positivos.
-\item A posição relativa mudou entre 160 e 320 vértices nesses casos.
+\item FW C clássico: 2 rodadas (cerca de 1 hora cada). Demais: 10 rodadas.
+\item Blocado \alert{7,2\(\times\)} (W1) e \alert{8,1\(\times\)} (W2) mais rápido que o clássico, com as mesmas \(1{,}6\times10^{13}\) comparações.
+\item W1 \(\times\) W2: mesmo laço cúbico (434 s \(\times\) 430 s isolados); W1 gasta 13 s a mais marcando \(-\infty\).
 \end{itemize}
 \end{frame}
 
-\begin{frame}{Todos os pares nos grafos oficiais} % 1:00
-\centering\TabelaRecursos
-\par\medskip
+\begin{frame}{Estudo 4: Bellman--Ford \(\times n\) contra Floyd--Warshall}
+\centering\small\TabelaTodosPares
+\par\smallskip
+\begin{columns}[T,onlytextwidth]
+\column{.36\textwidth}
+\small
 \begin{itemize}
-\item A máquina local tem 4 GB de RAM. As matrizes densas de W1 e W2 já excedem esse total.
-\item Projeção para dez rodadas de Floyd em W1 ou W2: ordem de semanas na máquina local.
-\item Bellman--Ford em fluxo conserva uma coluna por vez.
+\item Média de 10 rodadas (FW clássico: 2), em segundos.
+\item * Johnson só detecta o ciclo negativo de W1.
+\item BF \(\times n\): 25.000 execuções, 8 threads.
+\item Gráfico: sintéticos com \(22n\) arcos, 8 threads.
+\end{itemize}
+\column{.62\textwidth}
+\centering
+\begin{tikzpicture}
+\begin{loglogaxis}[width=.72\linewidth,height=4.3cm,xlabel={vértices},ylabel={segundos},
+  xtick={500,1000,2000,4000},xticklabels={500,1k,2k,4k},
+  legend style={font=\tiny,draw=none},legend pos=outer north east,
+  tick label style={font=\scriptsize},label style={font=\scriptsize}]
+\addplot[cinza,mark=*,thick] coordinates {\PontosFwPy};
+\addplot[pyforte,mark=square*,thick] coordinates {\PontosFwClassico};
+\addplot[cforte,mark=triangle*,thick] coordinates {\PontosFwBlocado};
+\addplot[black,dashed,mark=o] coordinates {\PontosJohnson};
+\addplot[verde,mark=diamond*,thick] coordinates {\PontosBfTodos};
+\legend{FW Python,FW C clássico,FW C blocado,Johnson C,BF \(\times n\) C}
+\end{loglogaxis}
+\end{tikzpicture}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Quem foi mais eficiente, e por quê}
+\begin{itemize}
+\item \alert{Bellman--Ford \(\times n\) venceu o Floyd--Warshall}: 5,6\(\times\) em W2, 3,2\(\times\) em W1, 3,7\(\times\) no sintético de 4.000.
+\item Floyd--Warshall custa \(n^3\) \alert{qualquer que seja} o número de arcos.
+\item Bellman--Ford otimizado custa \(\approx n\cdot m\cdot r\): grafos esparsos (\(m\approx22n\) a \(33n\)) e poucas rodadas efetivas \(r\).
+\item Sem as otimizações seria \(n^2 m\approx5\times10^{14}\) em W2: 30\(\times\) pior que o Floyd--Warshall.
+\item Johnson foi o mais rápido sem ciclo negativo (51 s em W2): um Bellman--Ford e \(n\) Dijkstras.
+\item Floyd--Warshall compensa em grafos \alert{densos}, onde \(m\to n^2\) e BF \(\times n\) chega a \(n^4\).
 \end{itemize}
 \end{frame}
 
-\begin{frame}{Conclusões} % 0:50
+\begin{frame}{Conclusões}
 \begin{columns}[T,onlytextwidth]
 \column{.49\textwidth}
-\textbf{Contribuições}
+\textbf{Implementação}
 \begin{itemize}
-\item Grafos direcionados ponderados com reutilização de BFS, DFS e Dijkstra.
-\item Bellman--Ford com fronteira ativa e Floyd--Warshall com matrizes em lugar.
+\item Grafos direcionados ponderados; BFS, DFS e Dijkstra reaproveitados.
+\item Bellman--Ford com as três otimizações e dois indicadores de ciclo.
+\item Floyd--Warshall em uma matriz, em quatro versões; Johnson como extra.
 \end{itemize}
 \column{.47\textwidth}
-\textbf{Validação}
+\textbf{Resultados}
 \begin{itemize}
-\item As 125 distâncias seletivas foram conferidas por Dijkstra em C ou por um certificado de ciclo negativo.
-\item A detecção distingue existência global e pares afetados.
+\item Em grafos esparsos, BF \(\times n\) e Johnson superam o Floyd--Warshall.
+\item Organizar a memória rendeu 7--8\(\times\) sem mudar a complexidade.
+\item Testes conferem as versões entre si e cada árvore.
 \end{itemize}
 \end{columns}
-\medskip
-\alert{Limite experimental.} A comparação de desempenho nos grafos oficiais aguarda dez rodadas de todos os pares por método.
 \end{frame}
 \end{document}

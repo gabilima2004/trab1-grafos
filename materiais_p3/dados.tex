@@ -1,25 +1,17 @@
 \newcommand{\TabelaDestino}{%
-\begin{tabular}{lrrrr}
+\begin{tabular}{lrrrrr}
 \toprule
-Grafo & $10$ & $20$ & $30$ & Média (s) \\
+Grafo & $10$ & $20$ & $30$ & Python (s) & C (s) \\
 \midrule
-W1 & $-\infty$ & $-\infty$ & $-\infty$ & 0,354 \\
-W2 & 10,47 & 8,48 & 8,71 & 1,227 \\
-W3 & 4,63 & 5,42 & 4,67 & 2,992 \\
-W4 & 9,04 & 8,83 & 9,23 & 13,721 \\
-W5 & 37,85 & 42,63 & 37,86 & 14,821 \\
-\bottomrule\end{tabular}
+W1 & $-\infty$ & $-\infty$ & $-\infty$ & 0,206 {\scriptsize(0,001)} & 0,026 {\scriptsize(0,000)} \\
+W2 & 10,47 & 8,48 & 8,71 & 0,055 {\scriptsize(0,002)} & 0,010 {\scriptsize(0,000)} \\
+W3 & 4,63 & 5,42 & 4,67 & 0,433 {\scriptsize(0,004)} & 0,104 {\scriptsize(0,000)} \\
+W4 & 9,04 & 8,83 & 9,23 & 3,56 {\scriptsize(0,052)} & 1,59 {\scriptsize(0,005)} \\
+W5 & 37,85 & 42,63 & 37,86 & 5,76 {\scriptsize(0,054)} & 3,97 {\scriptsize(0,027)} \\
+\bottomrule
+\end{tabular}%
 }
-\newcommand{\TabelaCalibracao}{%
-\begin{tabular}{lrr}
-\toprule
-Vértices & Bellman--Ford & Floyd--Warshall \\
-\midrule
-80 & 0,026--0,036 & 0,019--0,020 \\
-160 & 0,077--0,124 & 0,065--0,073 \\
-320 & 0,182--0,242 & 0,291--0,303 \\
-\bottomrule\end{tabular}
-}
+
 \newcommand{\MatrizUm}{%
 \begin{tabular}{lrrrrr}
 \toprule
@@ -30,8 +22,10 @@ Vértices & Bellman--Ford & Floyd--Warshall \\
 30 & $-\infty$ & $-\infty$ & $-\infty$ & $-\infty$ & $-\infty$ \\
 40 & $-\infty$ & $-\infty$ & $-\infty$ & $-\infty$ & $-\infty$ \\
 50 & $-\infty$ & $-\infty$ & $-\infty$ & $-\infty$ & $-\infty$ \\
-\bottomrule\end{tabular}
+\bottomrule
+\end{tabular}%
 }
+
 \newcommand{\MatrizDois}{%
 \begin{tabular}{lrrrrr}
 \toprule
@@ -42,8 +36,10 @@ Vértices & Bellman--Ford & Floyd--Warshall \\
 30 & 5,79 & 12,55 & 0,00 & 8,30 & 6,33 \\
 40 & 5,05 & 12,32 & 5,36 & 0,00 & 5,71 \\
 50 & 4,48 & 12,23 & 7,79 & 8,26 & 0,00 \\
-\bottomrule\end{tabular}
+\bottomrule
+\end{tabular}%
 }
+
 \newcommand{\MatrizTres}{%
 \begin{tabular}{lrrrrr}
 \toprule
@@ -54,8 +50,9 @@ Vértices & Bellman--Ford & Floyd--Warshall \\
 30 & 3,96 & 5,80 & 0,00 & 8,30 & 3,17 \\
 40 & 3,58 & 5,59 & 6,10 & 0,00 & 3,84 \\
 50 & 3,25 & 5,41 & 6,12 & 8,10 & 0,00 \\
-\bottomrule\end{tabular}
+\bottomrule\end{tabular}%
 }
+
 \newcommand{\MatrizQuatro}{%
 \begin{tabular}{lrrrrr}
 \toprule
@@ -66,8 +63,9 @@ Vértices & Bellman--Ford & Floyd--Warshall \\
 30 & 7,61 & 10,25 & 0,00 & 8,77 & 6,55 \\
 40 & 7,94 & 8,65 & 9,22 & 0,00 & 7,75 \\
 50 & 7,99 & 11,41 & 8,80 & 8,55 & 0,00 \\
-\bottomrule\end{tabular}
+\bottomrule\end{tabular}%
 }
+
 \newcommand{\MatrizCinco}{%
 \begin{tabular}{lrrrrr}
 \toprule
@@ -78,19 +76,67 @@ Vértices & Bellman--Ford & Floyd--Warshall \\
 30 & 34,46 & 42,64 & 0,00 & 47,04 & 43,85 \\
 40 & 38,73 & 43,91 & 47,30 & 0,00 & 45,24 \\
 50 & 44,06 & 40,62 & 45,25 & 49,11 & 0,00 \\
-\bottomrule\end{tabular}
+\bottomrule\end{tabular}%
 }
 
-% Memoria das matrizes densas, obtida de (V+1)^2 celulas.
-\newcommand{\TabelaRecursos}{%
-\begin{tabular}{lrr}
+\newcommand{\TabelaTempos}{%
+\begin{tabular}{lrrrr}
 \toprule
-Grafo & Floyd--Warshall & Bellman--Ford denso\\
+Grafo & BF Python & BF C & FW C blocado & FW C clássico \\
 \midrule
-W1, W2 & 7,50 GB & 5,00 GB\\
-W3 & 120 GB & 80 GB\\
-W4 & 12 TB & 8 TB\\
-W5 & 1,2 PB & 0,8 PB\\
+W1 & 0,206 {\scriptsize(0,001)} & 0,026 {\scriptsize(0,000)} & 527 {\scriptsize(33,3)} & 3.787 {\scriptsize(37,6)} \\
+W2 & 0,055 {\scriptsize(0,002)} & 0,010 {\scriptsize(0,000)} & 429 {\scriptsize(3,53)} & 3.486 {\scriptsize(41,4)} \\
+W3 & 0,433 {\scriptsize(0,004)} & 0,104 {\scriptsize(0,000)} & --- & --- \\
+W4 & 3,56 {\scriptsize(0,052)} & 1,59 {\scriptsize(0,005)} & --- & --- \\
+W5 & 5,76 {\scriptsize(0,054)} & 3,97 {\scriptsize(0,027)} & --- & --- \\
 \bottomrule
 \end{tabular}%
 }
+
+\newcommand{\TabelaTodosPares}{%
+\begin{tabular}{lrrrr}
+\toprule
+Grafo & BF $\times n$ & Johnson & FW blocado & FW clássico \\
+\midrule
+W1 & 163 {\scriptsize(7,89)} & 0,038 {\scriptsize(0,003)}\textsuperscript{*} & 527 {\scriptsize(33,3)} & 3.787 {\scriptsize(37,6)} \\
+W2 & 76,3 {\scriptsize(0,474)} & 51,3 {\scriptsize(0,439)} & 429 {\scriptsize(3,53)} & 3.486 {\scriptsize(41,4)} \\
+\bottomrule
+\end{tabular}%
+}
+
+\newcommand{\TabelaSinteticos}{%
+\begin{tabular}{rrrrrrr}
+\toprule
+$n$ & FW Py clás. & FW Py bloc. & FW C clás. 1T/8T & FW C bloc. 1T/8T & BF$\times n$ Py/C & Johnson Py/C \\
+\midrule
+500 & 0,638 & 0,290 & 0,046 / 0,092 & 0,042 / 0,036 & 0,458 / 0,010 & 1,51 / 0,013 \\
+1.000 & 3,04 & 2,12 & 0,472 / 0,907 & 0,241 / 0,123 & 1,79 / 0,045 & 6,53 / 0,056 \\
+2.000 & 15,1 & 15,4 & 4,44 / 3,41 & 1,51 / 0,531 & 6,63 / 0,180 & 28,0 / 0,234 \\
+4.000 & 89,9 & 75,7 & 37,3 / 21,6 & 9,98 / 3,11 & 27,4 / 0,830 & 119 / 1,07 \\
+\bottomrule
+\end{tabular}%
+}
+
+\newcommand{\PontosFwPy}{(500,0.6379) (1000,3.0359) (2000,15.0635) (4000,89.8774)}
+
+\newcommand{\PontosFwClassico}{(500,0.0916) (1000,0.9070) (2000,3.4093) (4000,21.5718)}
+
+\newcommand{\PontosFwBlocado}{(500,0.0359) (1000,0.1226) (2000,0.5312) (4000,3.1067)}
+
+\newcommand{\PontosBfTodos}{(500,0.0097) (1000,0.0454) (2000,0.1798) (4000,0.8299)}
+
+\newcommand{\PontosJohnson}{(500,0.0133) (1000,0.0557) (2000,0.2344) (4000,1.0701)}
+
+\newcommand{\TempoFwBlocadoUm}{527}
+
+\newcommand{\TempoFwBlocadoDois}{429}
+
+\newcommand{\TempoFwClassicoUm}{3.787}
+
+\newcommand{\TempoFwClassicoDois}{3.486}
+
+\newcommand{\TempoBfTodosUm}{163}
+
+\newcommand{\TempoBfTodosDois}{76,3}
+
+\newcommand{\TempoJohnsonDois}{51,3}
