@@ -1,0 +1,18 @@
+{
+  "metodo": "fase densa do classico e rodada do blocado medidas na matriz 25001x25001 de W2; classico ponderado pela fracao media de linhas com D[u][k] finito (alcance restrito, amostra a cada 250 fases)",
+  "fase_densa_classico_s": 2.175,
+  "rodada_blocado_s": 79.9,
+  "rodadas_blocado": 391,
+  "grafos": {
+    "grafo_W_1.txt.gz": {
+      "fracao_linhas_ativas": 0.7093,
+      "classico_s": 38568,
+      "blocado_s": 31241
+    },
+    "grafo_W_2.txt.gz": {
+      "fracao_linhas_ativas": 0.6338,
+      "classico_s": 34463,
+      "blocado_s": 31241
+    }
+  }
+}

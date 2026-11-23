@@ -80,15 +80,15 @@ W5 & 37,85 & 42,63 & 37,86 & 5,76 {\scriptsize(0,054)} & 3,97 {\scriptsize(0,027
 }
 
 \newcommand{\TabelaTempos}{%
-\begin{tabular}{lrrrr}
+\begin{tabular}{lrrrrr}
 \toprule
-Grafo & BF Python & BF C & FW C blocado & FW C clássico \\
+Grafo & BF Python & BF C & FW Python\textsuperscript{\dag} & FW C blocado & FW C clássico \\
 \midrule
-W1 & 0,206 {\scriptsize(0,001)} & 0,026 {\scriptsize(0,000)} & 527 {\scriptsize(33,3)} & 3.787 {\scriptsize(37,6)} \\
-W2 & 0,055 {\scriptsize(0,002)} & 0,010 {\scriptsize(0,000)} & 429 {\scriptsize(3,53)} & 3.486 {\scriptsize(41,4)} \\
-W3 & 0,433 {\scriptsize(0,004)} & 0,104 {\scriptsize(0,000)} & --- & --- \\
-W4 & 3,56 {\scriptsize(0,052)} & 1,59 {\scriptsize(0,005)} & --- & --- \\
-W5 & 5,76 {\scriptsize(0,054)} & 3,97 {\scriptsize(0,027)} & --- & --- \\
+W1 & 0,206 {\scriptsize(0,001)} & 0,026 {\scriptsize(0,000)} & $\approx$10,7~h / 8,7~h & 527 {\scriptsize(33,3)} & 3.787 {\scriptsize(37,6)} \\
+W2 & 0,055 {\scriptsize(0,002)} & 0,010 {\scriptsize(0,000)} & $\approx$9,6~h / 8,7~h & 429 {\scriptsize(3,53)} & 3.486 {\scriptsize(41,4)} \\
+W3 & 0,433 {\scriptsize(0,004)} & 0,104 {\scriptsize(0,000)} & --- & --- & --- \\
+W4 & 3,56 {\scriptsize(0,052)} & 1,59 {\scriptsize(0,005)} & --- & --- & --- \\
+W5 & 5,76 {\scriptsize(0,054)} & 3,97 {\scriptsize(0,027)} & --- & --- & --- \\
 \bottomrule
 \end{tabular}%
 }
@@ -140,3 +140,9 @@ $n$ & FW Py clás. & FW Py bloc. & FW C clás. 1T/8T & FW C bloc. 1T/8T & BF$\ti
 \newcommand{\TempoBfTodosDois}{76,3}
 
 \newcommand{\TempoJohnsonDois}{51,3}
+
+\newcommand{\EstimativaPyClassicoUm}{10,7~h}
+
+\newcommand{\EstimativaPyClassicoDois}{9,6~h}
+
+\newcommand{\EstimativaPyBlocado}{8,7~h}

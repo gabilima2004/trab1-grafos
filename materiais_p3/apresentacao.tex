@@ -187,6 +187,7 @@ C clássico & \texttt{float64} & 7,5 GB & laço \(k\)-\(i\)-\(j\) vetorizado, Op
 \small
 \begin{itemize}
 \item FW C clássico: 2 rodadas (cerca de 1 hora cada). Demais: 10 rodadas.
+\item \dag\ FW Python não rodou: estimativa medindo fases reais na matriz de W2 (clássico / blocado).
 \item Blocado \alert{7,2\(\times\)} (W1) e \alert{8,1\(\times\)} (W2) mais rápido que o clássico, com as mesmas \(1{,}6\times10^{13}\) comparações.
 \item W1 \(\times\) W2: mesmo laço cúbico (434 s \(\times\) 430 s isolados); W1 gasta 13 s a mais marcando \(-\infty\).
 \end{itemize}

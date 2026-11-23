@@ -219,8 +219,12 @@ em que todos os 625 milhões de pares recebem −∞, e zero em W2. O restante d
 diferença na tabela é variação entre rodadas: as rodadas de W1 oscilaram entre
 450 e 560 s (desvio de 33 s), e as de W2 ficaram entre 425 e 436 s.
 
-Pela curva dos sintéticos (abaixo), o Floyd-Warshall Python clássico levaria
-cerca de 90 s × (25.000 / 4.000)³ ≈ 6 horas por rodada em W1 ou W2. Por isso ele
+O Floyd-Warshall em Python não rodou em W1 e W2. Medimos o custo real na matriz
+de W2: 2,2 s por fase `k` densa na versão clássica e 80 s por rodada de 64 fases
+na blocada. A clássica pula as linhas com `D[u][k] = ∞`, e, em média, 71% das
+linhas estão ativas em W1 e 63% em W2. A estimativa é de 10,7 h (W1) e 9,6 h
+(W2) por rodada na clássica, e 8,7 h na blocada, ou seja, de 3,5 a 4,5 dias para
+dez rodadas (`resultados_p3/todos_pares/estimativa_fw_python.json`). Por isso ele
 foi medido só nos sintéticos.
 
 ### 4. Bellman-Ford para todos os pares × Floyd-Warshall

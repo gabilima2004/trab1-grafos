@@ -31,6 +31,10 @@ def tempo(segundos):
     return decimal(segundos, 3)
 
 
+def horas(segundos):
+    return decimal(segundos / 3600, 1) + "~h"
+
+
 def media_dp(registro):
     tempos = registro["tempos"]
     texto = tempo(mean(tempos))
@@ -86,15 +90,20 @@ def main():
     for nome, conteudo in antigas.items():
         saida.append(comando(nome, conteudo))
 
+    estimativa = json.loads((RESULTADOS / "estimativa_fw_python.json").read_text(encoding="utf-8"))["grafos"]
     linhas = []
     for numero, dados in grafos.items():
         algoritmos = dados["algoritmos"]
         linha = [f"W{numero}", media_dp(algoritmos["bellman_ford_py"]), media_dp(algoritmos["bellman_ford_c"])]
+        previsto = estimativa.get(dados["grafo"])
+        linha.append(rf"$\approx${horas(previsto['classico_s'])} / {horas(previsto['blocado_s'])}"
+                     if previsto else "---")
         for chave in ("fw_blocado_c", "fw_classico_c"):
             linha.append(media_dp(algoritmos[chave]) if "tempos" in algoritmos[chave] else "---")
         linhas.append(linha)
     saida.append(comando("TabelaTempos", tabela(
-        ["Grafo", "BF Python", "BF C", "FW C blocado", "FW C clássico"], "lrrrr", linhas)))
+        ["Grafo", "BF Python", "BF C", r"FW Python\textsuperscript{\dag}", "FW C blocado", "FW C clássico"],
+        "lrrrrr", linhas)))
 
     linhas = []
     for numero in (1, 2):
@@ -136,6 +145,9 @@ def main():
         "TempoBfTodosUm": tempo(mean(grafos[1]["algoritmos"]["bf_todos_c"]["tempos"])),
         "TempoBfTodosDois": tempo(mean(grafos[2]["algoritmos"]["bf_todos_c"]["tempos"])),
         "TempoJohnsonDois": tempo(mean(grafos[2]["algoritmos"]["johnson_c"]["tempos"])),
+        "EstimativaPyClassicoUm": horas(estimativa["grafo_W_1.txt.gz"]["classico_s"]),
+        "EstimativaPyClassicoDois": horas(estimativa["grafo_W_2.txt.gz"]["classico_s"]),
+        "EstimativaPyBlocado": horas(estimativa["grafo_W_1.txt.gz"]["blocado_s"]),
     }
     for nome, valor in valores.items():
         saida.append(rf"\newcommand{{\{nome}}}{{{valor}}}" + "\n")
