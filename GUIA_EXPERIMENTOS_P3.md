@@ -1,12 +1,64 @@
 # Execução dos experimentos da Parte 3
 
-## Preparar a máquina
+Há dois caminhos:
+
+- **Motor C (principal).** `comparacao_todos_pares.py` mede todas as versões
+  de Floyd-Warshall, Bellman-Ford e Johnson. É o caminho dos resultados
+  publicados em `resultados_p3/todos_pares/`. Exige Linux com GCC, zlib e
+  OpenMP, e pelo menos 16 GB de RAM para W1 e W2.
+- **Só Python (alternativo).** `benchmark_p3.py` foi feito para máquinas com
+  pouca memória: planeja, estima e recusa casos que não cabem. Está descrito a
+  partir de "Preparar a máquina para o caminho só Python".
+
+## Caminho principal: motor C
+
+```sh
+python -m venv .venv && source .venv/bin/activate
+python -m pip install -r requirements.txt
+make testes
+```
+
+`make testes` compila `c/libgrafos.so` com `-O2 -march=native -fopenmp` e roda
+as suítes das partes 2 e 3. Coloque os `grafo_W_*.txt.gz` na raiz do projeto;
+eles podem continuar compactados.
+
+```sh
+python comparacao_todos_pares.py --tamanhos 500 1000 2000 4000
+python comparacao_todos_pares.py grafo_W_1.txt.gz grafo_W_2.txt.gz grafo_W_3.txt.gz grafo_W_4.txt.gz grafo_W_5.txt.gz
+python comparacao_todos_pares.py --conferir
+```
+
+A primeira linha mede a curva em grafos sintéticos direcionados (22 arcos por
+vértice, como W1, pesos de 0 a 10 com duas casas). Ela usa três rodadas por
+versão, inclusive as versões Python e as versões C com uma thread. A segunda
+linha mede os grafos oficiais com as rodadas padrão:
+
+| Chave | Algoritmo | Rodadas |
+|---|---|---:|
+| `bellman_ford_py`, `bellman_ford_c` | Bellman-Ford até 100 (todos os grafos) | 10 |
+| `fw_blocado_c` | Floyd-Warshall C blocado com inteiros | 10 |
+| `bf_todos_c` | Bellman-Ford C para todos os destinos | 10 |
+| `johnson_c` | Johnson em C | 10 |
+| `fw_classico_c` | Floyd-Warshall C clássico | 2 |
+
+O clássico em C fica com duas rodadas porque cada uma leva horas em W1 e W2;
+o objetivo dele é mostrar o ganho da versão blocada. Os algoritmos de todos os
+pares só rodam até `--limite-todos-pares` vértices (padrão 25.000), então W3
+a W5 aparecem como omitidos. `--rodadas chave=N ...` troca o plano, e
+`--threads N` fixa o número de threads (0 usa todos os núcleos).
+
+Cada rodada concluída é gravada no JSON do grafo. Ctrl+C perde só a rodada em
+curso, e repetir o comando retoma de onde parou. `--conferir` compara as
+amostras 5 × 5 de todas as versões e termina com erro se alguma divergir.
+Rode uma medição por vez e evite outras cargas na máquina durante a execução.
+
+## Preparar a máquina para o caminho só Python
 
 Use Python 3.11 ou superior e a dependência NumPy de `requirements.txt`.
 Copie uma versão congelada dos arquivos desta árvore de trabalho, incluindo
 os arquivos novos locais, e abra um terminal nessa pasta. Coloque os cinco
 `grafo_W_*.txt.gz` originais em `dados/`. Eles podem permanecer compactados.
-O motor C é opcional e não participa dos benchmarks abaixo.
+O motor C é opcional e não participa dos benchmarks desta seção.
 
 ```sh
 python -m venv .venv
@@ -124,15 +176,20 @@ e da mesma versão do código.
 ## Orçamento de recursos
 
 A tabela dá apenas o tamanho das matrizes finais, em unidades decimais.
-Cada fase ainda precisa do grafo e dos vetores temporários. A coluna de
-Floyd-Warshall inclui distâncias `float64` e predecessores `int32`.
+Cada fase ainda precisa do grafo e dos vetores temporários. A coluna
+"clássico" usa distâncias `float64` e predecessores `int32`. A coluna
+"blocado" usa distâncias `int32` e predecessores `int16` (ou `int32` acima de
+32.767 vértices).
 
-| Grafo | Vértices | Floyd-Warshall, duas matrizes | Bellman-Ford denso, uma matriz | Combinações V³ por rodada de Floyd |
-|---|---:|---:|---:|---:|
-| W1, W2 | 25.000 | 7,50 GB | 5,00 GB | 1,56 × 10¹³ |
-| W3 | 100.000 | 120 GB | 80 GB | 10¹⁵ |
-| W4 | 1.000.000 | 12 TB | 8 TB | 10¹⁸ |
-| W5 | 10.000.000 | 1,2 PB | 0,8 PB | 10²¹ |
+| Grafo | Vértices | Floyd clássico | Floyd C blocado | Bellman-Ford denso | Combinações V³ por rodada de Floyd |
+|---|---:|---:|---:|---:|---:|
+| W1, W2 | 25.000 | 7,50 GB | 3,75 GB | 5,00 GB | 1,56 × 10¹³ |
+| W3 | 100.000 | 120 GB | 80 GB | 80 GB | 10¹⁵ |
+| W4 | 1.000.000 | 12 TB | 8 TB | 8 TB | 10¹⁸ |
+| W5 | 10.000.000 | 1,2 PB | 0,8 PB | 0,8 PB | 10²¹ |
+
+Johnson em C guarda distâncias `float64` e predecessores `int32`, como o
+clássico.
 
 - **Uma consulta Bellman-Ford.** As dez rodadas já foram obtidas na
   máquina local para W1 a W5. Refaça na máquina da dupla se quiser uma
@@ -179,13 +236,18 @@ O CSV auxiliar `.validacao.csv` indica como cada célula foi conferida.
 
 ## Precisão e ciclos
 
-`bellman_ford(grafo, destino)` indica ciclos que alcançam aquele destino.
-`tem_ciclo_negativo_global(grafo)` parte de distâncias iniciais zero para
-todos os vértices, o equivalente a uma raiz virtual, e cobre todas as
-componentes. A consulta por destino ficou separada do teste global para
-preservar o custo e a semântica de cada benchmark.
+`bellman_ford(grafo, destino)` indica em `tem_ciclo_negativo` os ciclos que
+alcançam aquele destino. Com `verificar_grafo=True`, o resultado também traz
+`ciclo_no_grafo`, que cobre todas as componentes. `tem_ciclo_negativo_global`
+faz só essa verificação: parte de distâncias iniciais zero para todos os
+vértices, o equivalente a uma raiz virtual. O teste global fica fora das
+medições por destino para preservar o custo de cada benchmark.
+`bellman_ford_c` aceita os mesmos parâmetros.
 
-A biblioteca usa `float64`. Ela pode perder uma melhora pequena perto de
+As versões Python, o Floyd-Warshall C clássico, o Bellman-Ford C e o Johnson
+usam `float64`. O Floyd-Warshall C blocado usa inteiros na escala dos pesos
+(×100 em W1 e W2): é exato e recusa pesos que não cabem em 32 bits
+(`escala_inteira`). A aritmética `float64` pode perder uma melhora pequena perto de
 um valor muito grande, por exemplo, ao somar `-1` a `1e16`. O caso afeta a
 detecção por relaxamento e está fora da escala observada nas consultas
 oficiais. Os resultados finitos das tabelas foram conferidos por Dijkstra
