@@ -167,17 +167,104 @@ chega a 100. Por isso nenhuma das distâncias tem mínimo finito; em W1 todos os
 
 ### 2. Floyd-Warshall entre {10, 20, 30, 40, 50}
 
-PENDENTE — preenchido ao fim da medição (C blocado em W1 e W2).
+Distância da linha (origem) até a coluna (destino), calculada pelo C blocado.
+O C clássico, o Bellman-Ford para todos os pares e o Johnson chegaram aos mesmos
+valores (diferença máxima de 10⁻¹⁴, só de arredondamento do `float64`).
+
+**W2** (sem ciclo negativo):
+
+| | 10 | 20 | 30 | 40 | 50 |
+|---|---:|---:|---:|---:|---:|
+| **10** | 0 | 11,73 | 8,14 | 9,49 | 7,08 |
+| **20** | 3,84 | 0 | 7,03 | 8,30 | 4,70 |
+| **30** | 5,79 | 12,55 | 0 | 8,30 | 6,33 |
+| **40** | 5,05 | 12,32 | 5,36 | 0 | 5,71 |
+| **50** | 4,48 | 12,23 | 7,79 | 8,26 | 0 |
+
+**W1:** o Floyd-Warshall encontra ciclo negativo, e os 25 pares, inclusive a
+diagonal, valem −∞. Cada um dos cinco vértices alcança o ciclo e é alcançado a
+partir dele, então nenhuma dessas distâncias tem mínimo finito. Isso confirma
+o estudo 1.
 
 W3 a W5 não cabem em memória: mesmo na versão inteira (distâncias e
 predecessores em `int32`, já que n > 32.767), as matrizes exigiriam 80 GB,
 8 TB e 800 TB.
 
-### 3. Tempo médio (10 rodadas, segundos)
+### 3. Tempo médio (segundos)
 
-PENDENTE — preenchido ao fim da medição.
+Média de 10 rodadas, exceto o Floyd-Warshall C clássico (2 rodadas, por levar
+cerca de uma hora cada). Desvio padrão entre parênteses.
+
+| Grafo | Bellman-Ford (Python) | Bellman-Ford (C) | Floyd-Warshall C blocado | Floyd-Warshall C clássico |
+|---|---:|---:|---:|---:|
+| W1 | 0,206 (0,001) | 0,026 (0,000) | 527 (33) | 3.787 (38) |
+| W2 | 0,055 (0,002) | 0,010 (0,000) | 429 (4) | 3.486 (41) |
+| W3 | 0,433 (0,004) | 0,104 (0,000) | — | — |
+| W4 | 3,56 (0,05) | 1,59 (0,00) | — | — |
+| W5 | 5,76 (0,05) | 3,97 (0,03) | — | — |
+
+O Bellman-Ford até um destino é rápido porque as duas otimizações cortam quase
+todo o trabalho: as rodadas param assim que nada melhora, e cada rodada só
+percorre os arcos de quem mudou. Em W1, a verificação periódica do grafo de
+sucessores encontra o ciclo cedo, sem chegar à rodada n.
+
+No Floyd-Warshall, a versão blocada foi **7,2× mais rápida** que a clássica em
+W1 e **8,1×** em W2. As duas fazem as mesmas n³ = 1,6 × 10¹³ comparações; a
+diferença vem só de como usam a memória.
+
+O laço cúbico custa o mesmo em W1 e W2: ele não depende dos pesos nem do número
+de arcos. Numa rodada isolada, feita depois do benchmark, o C blocado levou
+434 s em W1 e 430 s em W2. A diferença real é a marcação de −∞: 13 s em W1,
+em que todos os 625 milhões de pares recebem −∞, e zero em W2. O restante da
+diferença na tabela é variação entre rodadas: as rodadas de W1 oscilaram entre
+450 e 560 s (desvio de 33 s), e as de W2 ficaram entre 425 e 436 s.
+
+Pela curva dos sintéticos (abaixo), o Floyd-Warshall Python clássico levaria
+cerca de 90 s × (25.000 / 4.000)³ ≈ 6 horas por rodada em W1 ou W2. Por isso ele
+foi medido só nos sintéticos.
 
 ### 4. Bellman-Ford para todos os pares × Floyd-Warshall
 
-PENDENTE — preenchido ao fim da medição, com Johnson como terceira referência e
-a curva dos grafos sintéticos (500 a 4.000 vértices).
+Bellman-Ford para todos os pares roda o Bellman-Ford otimizado uma vez para cada
+destino (25.000 execuções, em paralelo com 8 threads). Johnson entra como
+terceira referência.
+
+| Grafo | Bellman-Ford × n (C) | Johnson (C) | Floyd-Warshall C blocado | Floyd-Warshall C clássico |
+|---|---:|---:|---:|---:|
+| W1 | 163 | 0,04 (só detecta o ciclo) | 527 | 3.787 |
+| W2 | 76 | **51** | 429 | 3.486 |
+
+**Grafos sintéticos** (n vértices, 22n arcos com pesos de 0 a 10, média de 3
+rodadas):
+
+| n | FW Python clássico | FW Python blocado | FW C clássico 1T / 8T | FW C blocado 1T / 8T | BF × n Python / C | Johnson Python / C |
+|---:|---:|---:|---:|---:|---:|---:|
+| 500 | 0,64 | 0,29 | 0,046 / 0,092 | 0,042 / 0,036 | 0,46 / 0,010 | 1,51 / 0,013 |
+| 1.000 | 3,04 | 2,12 | 0,47 / 0,91 | 0,24 / 0,12 | 1,79 / 0,045 | 6,53 / 0,056 |
+| 2.000 | 15,1 | 15,4 | 4,44 / 3,41 | 1,51 / 0,53 | 6,63 / 0,18 | 28,0 / 0,23 |
+| 4.000 | 89,9 | 75,7 | 37,3 / 21,6 | 9,98 / 3,11 | 27,4 / 0,83 | 119 / 1,07 |
+
+**Quem ganhou e por quê.**
+
+- **Em grafos esparsos, Bellman-Ford para todos os pares ganha do
+  Floyd-Warshall**, mesmo com a melhor versão deste: 5,6× em W2, 3,2× em W1 e
+  3,7× no sintético de 4.000 vértices. O Floyd-Warshall custa n³ qualquer que
+  seja o número de arcos. O Bellman-Ford otimizado custa cerca de n · m ·
+  (rodadas efetivas), e com m ≈ 22n a 33n e poucas rodadas efetivas isso fica
+  bem abaixo de n³. Sem as otimizações (n − 1 rodadas completas por destino), o
+  custo seria n² · m ≈ 5 × 10¹⁴ em W2, 30× pior que o Floyd-Warshall.
+- **Johnson é o mais rápido quando não há ciclo negativo** (51 s em W2), porque
+  troca as 25.000 execuções de Bellman-Ford por uma só, seguida de Dijkstra com
+  heap, que não reprocessa vértices. Com ciclo negativo, ele só pode reportá-lo.
+  W2 não tem nenhum arco negativo (W1 tem 4.998), então ali a reponderação é
+  trivial e o Johnson equivale a rodar Dijkstra a partir de cada vértice.
+- **O Floyd-Warshall vale a pena em grafos densos**, em que m se aproxima de n²
+  e Bellman-Ford × n chegaria a n⁴. Também tem custo previsível e um laço
+  simples, que se beneficia de vetorização e cache.
+- **A versão clássica é limitada pela memória.** Com 8 threads, ela foi só
+  1,7× mais rápida que com 1 em n = 4.000, e com n ≤ 1.000 foi até mais lenta.
+  A versão blocada ganha 3,2× com as mesmas 8 threads, porque cada bloco é
+  reutilizado 256 vezes a partir do cache.
+- **Em Python, o bloqueio ajuda pouco** (2,2× em n = 500, 1,2× em n = 4.000 e
+  nenhum ganho em n = 2.000), porque cada operação NumPy ainda percorre a memória principal. O
+  ganho real veio do C: 29× entre o Python clássico e o C blocado em n = 4.000.

@@ -1,0 +1,76 @@
+{
+  "grafo": "grafo_W_4.txt.gz",
+  "algoritmos": {
+    "bellman_ford_py": {
+      "tempos": [
+        3.537891246996878,
+        3.6652086949980003,
+        3.605988017996424,
+        3.5880155520062544,
+        3.591228109005897,
+        3.5566374469999573,
+        3.5518795210009557,
+        3.514405522000743,
+        3.4929877640024642,
+        3.50946821099933
+      ],
+      "rodadas_planejadas": 10,
+      "resultado": {
+        "distancias": {
+          "10": 9.040000000000001,
+          "20": 8.83,
+          "30": 9.229999999999999
+        },
+        "ciclo_negativo": false
+      },
+      "media_s": 3.5613710086006902
+    },
+    "bellman_ford_c": {
+      "tempos": [
+        1.5874568309955066,
+        1.584297660003358,
+        1.5816611850023037,
+        1.5810630920022959,
+        1.581542931999138,
+        1.588875007997558,
+        1.589767869001662,
+        1.5850182509966544,
+        1.5955659090031986,
+        1.5895536550015095
+      ],
+      "rodadas_planejadas": 10,
+      "resultado": {
+        "distancias": {
+          "10": 9.040000000000001,
+          "20": 8.83,
+          "30": 9.229999999999999
+        },
+        "ciclo_negativo": false
+      },
+      "media_s": 1.5864802392003186
+    },
+    "fw_blocado_c": {
+      "omitido": "1000000 vertices acima do limite 25000"
+    },
+    "bf_todos_c": {
+      "omitido": "1000000 vertices acima do limite 25000"
+    },
+    "johnson_c": {
+      "omitido": "1000000 vertices acima do limite 25000"
+    },
+    "fw_classico_c": {
+      "omitido": "1000000 vertices acima do limite 25000"
+    }
+  },
+  "ambiente": {
+    "python": "3.14.4",
+    "numpy": "2.5.4",
+    "sistema": "Linux-7.0.0-43-generic-x86_64-with-glibc2.43",
+    "processador": "",
+    "nucleos": 8,
+    "threads": 8,
+    "compilacao_c": "cc 15.2.0; -O2 -march=native -std=gnu11 -Wall -Wextra -fPIC -ffp-contract=off -fopenmp"
+  },
+  "vertices": 1000000,
+  "arcos": 30999978
+}
